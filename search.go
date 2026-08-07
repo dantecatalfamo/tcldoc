@@ -124,6 +124,28 @@ func (ix *Indexer) AddPage(p *Page, url string) {
 	}
 }
 
+// AddKeywords registers the keyword index. A keyword is a name on the site
+// like any other, so it belongs in the first tier: typing "serialization"
+// should reach the keyword, and through it every page filed under it, rather
+// than only whichever pages happen to use the word in their prose.
+func (ix *Indexer) AddKeywords(kw keywordsView, url string) {
+	if len(kw.Groups) == 0 {
+		return
+	}
+	id := len(ix.Docs)
+	ix.Docs = append(ix.Docs, DocRec{
+		URL: url, Title: "Keywords", Manual: "Keyword index",
+		Summary: "Every keyword in the corpus, and the pages that carry it",
+	})
+	for _, g := range kw.Groups {
+		for _, e := range g.Entries {
+			ix.Names = append(ix.Names, NameRec{
+				Name: e.Name, Doc: id, Anchor: "k-" + e.ID, Kind: "keyword",
+			})
+		}
+	}
+}
+
 // AddDemo registers a demonstration script. It is not a manual page, but it is
 // a thing on the site with a name, so it belongs in both tiers: without this,
 // searching for "rolodex" finds nothing.

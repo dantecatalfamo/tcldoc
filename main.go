@@ -41,6 +41,7 @@ func main() {
 	flag.Var(&srcs, "src", "source tree or man page directory (repeatable)")
 	flag.Var(&demoDirs, "demos", "Tk demonstration directory, e.g. <prefix>/lib/tk9.0/demos (repeatable)")
 	out := flag.String("out", "site", "output directory")
+	version := flag.String("version", "", `version label for the site, e.g. "Tcl/Tk 9.0.3"`)
 	serve := flag.String("serve", "", "after building, serve on this address (e.g. :8080)")
 	quiet := flag.Bool("quiet", false, "suppress per-page warnings")
 	flag.Parse()
@@ -73,6 +74,13 @@ func main() {
 	}
 
 	site := plan(pages)
+	site.Version = *version
+	if site.Version == "" {
+		site.Version = inferVersion(pages)
+	}
+	if site.Version != "" {
+		fmt.Printf("version: %s\n", site.Version)
+	}
 
 	if len(demoDirs) > 0 {
 		site.Demos, err = discoverDemos(demoDirs)
@@ -180,6 +188,83 @@ func parseAll(files []string) ([]*Page, []string) {
 	return pages, warnings
 }
 
+// --- version ---------------------------------------------------------------
+
+var versionNum = regexp.MustCompile(`^\d+(\.\d+)*$`)
+
+// inferVersion reads the release out of the pages themselves.
+//
+// .TH's version field is archaeological: it records when each command was
+// introduced, so one Tcl tree carries everything from 7.0 to 9.0. The newest
+// value a distribution carries is nonetheless the release it was built from,
+// and Tcl and Tk agree on it. Only the series, though — "9.0.3" appears nowhere
+// in the corpus, so naming a patch level still needs -version.
+//
+// Read from Tcl and Tk only: a tcllib page's version is its own package's.
+func inferVersion(pages []*Page) string {
+	newest := map[string][]int{}
+	for _, p := range pages {
+		if p.Source != "Tcl" && p.Source != "Tk" || !versionNum.MatchString(p.Version) {
+			continue
+		}
+		v := versionParts(p.Version)
+		if compareVersions(v, newest[p.Source]) > 0 {
+			newest[p.Source] = v
+		}
+	}
+	tcl, tk := versionString(newest["Tcl"]), versionString(newest["Tk"])
+	switch {
+	case tcl != "" && tcl == tk:
+		return "Tcl/Tk " + tcl
+	case tcl != "" && tk != "":
+		return "Tcl " + tcl + " / Tk " + tk
+	case tcl != "":
+		return "Tcl " + tcl
+	case tk != "":
+		return "Tk " + tk
+	}
+	return ""
+}
+
+func versionParts(v string) []int {
+	var out []int
+	for _, f := range strings.Split(v, ".") {
+		n, err := strconv.Atoi(f)
+		if err != nil {
+			return nil
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+func versionString(v []int) string {
+	var b []string
+	for _, n := range v {
+		b = append(b, strconv.Itoa(n))
+	}
+	return strings.Join(b, ".")
+}
+
+func compareVersions(a, b []int) int {
+	for i := 0; i < len(a) || i < len(b); i++ {
+		x, y := 0, 0
+		if i < len(a) {
+			x = a[i]
+		}
+		if i < len(b) {
+			y = b[i]
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
+}
+
 // --- deduplication ---------------------------------------------------------
 
 // fingerprint identifies a page by its content rather than its filename.
@@ -250,6 +335,7 @@ type manual struct {
 }
 
 type site struct {
+	Version string // shown on every page; -version, since .TH cannot supply it
 	Pages   []*Page
 	Manuals []*manual
 	Demos   []*demo
@@ -822,8 +908,14 @@ func plural(n int, one, many string) string {
 }
 
 func (s *site) write(outDir string) error {
+	// version is a function rather than a field on every view: it is one string
+	// for the whole build, and threading it through five view types to reach a
+	// template that every page shares would be five fields of ceremony.
 	tmpl, err := template.New("site").
-		Funcs(template.FuncMap{"plural": plural}).
+		Funcs(template.FuncMap{
+			"plural":  plural,
+			"version": func() string { return s.Version },
+		}).
 		ParseFS(tmplFS, "templates/site.html")
 	if err != nil {
 		return err
@@ -860,6 +952,7 @@ func (s *site) write(outDir string) error {
 			kwAnchor[e.Name] = e.ID
 		}
 	}
+	ix.AddKeywords(kw, "keywords/index.html")
 
 	// Documentation pages.
 	for _, m := range s.Manuals {

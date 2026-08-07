@@ -11,7 +11,10 @@
 </head>
 <body>
 <header class="masthead">
-  <a class="wordmark" href="{{.Root}}/">tcl<span>doc</span></a>
+  <div class="brand">
+    <a class="wordmark" href="{{.Root}}/">tcl<span>doc</span></a>
+    {{with version}}<span class="ver">{{.}}</span>{{end}}
+  </div>
   <div class="searchwrap">
     <label for="q" hidden>Search the documentation</label>
     <input id="q" data-search type="search" autocomplete="off" spellcheck="false"
@@ -34,8 +37,9 @@
 
 {{define "foot"}}
 <footer>
-  <p>Generated from the Tcl and Tk manual page sources. Documentation is
-  copyright its respective authors; see the upstream distribution for terms.</p>
+  <p>Generated from the {{with version}}{{.}} {{end}}manual page sources.
+  Documentation is copyright its respective authors; see the upstream
+  distribution for terms.</p>
 </footer>
 <script src="{{.Root}}/search.js" defer></script>
 </body>

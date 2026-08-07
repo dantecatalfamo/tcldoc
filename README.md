@@ -19,6 +19,9 @@ go build -o tcldoc .
 
 # Include Tk's demonstration scripts
 ./tcldoc -src ~/tcl-src -demos ~/tcl-src/tk9.0.4/library/demos -out ./site
+
+# The release is inferred from the pages; override it to name a patch level
+./tcldoc -src ~/tcl-src -version "Tcl/Tk 9.0.4" -out ./site
 ```
 
 `-src` is repeatable and accepts either a directory to walk or a single file.
@@ -62,8 +65,18 @@ beside the breadcrumb. It is worth knowing that a Homebrew `tcl-tk` prefix
 bundles tcllib, so nine manuals in ten there are tcllib rather than core.
 
 **Keywords.** `.SH KEYWORDS` terms are pooled into an A-Z index at
-`keywords/`, the equivalent of the official site's `Keywords/` section, and
-each page's own keywords link into it.
+`keywords/`, the equivalent of the official site's `Keywords/` section. Each
+page's own keywords link into it, and every keyword is a search entry in its
+own right, so a term reaches the index and through it every page filed under
+it.
+
+**Version.** The masthead and footer carry the release the site documents,
+inferred from the pages. `.TH`'s version field is archaeological — it records
+when each command was introduced, so one Tcl tree spans 7.0 to 9.0 — but the
+newest value a distribution carries is the release it was built from, and Tcl
+and Tk agree on it. Only the series is recoverable that way: `9.0.3` appears
+nowhere in the corpus, so `-version "Tcl/Tk 9.0.3"` overrides it to name a
+patch level.
 
 **Attribution.** Every page carries its credits in the `.\"` comment header
 above `.TH`, not in the document body, which is where upstream's converter

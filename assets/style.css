@@ -102,7 +102,16 @@ a:hover { text-decoration-thickness: 2px; }
   text-decoration: none;
   white-space: nowrap;
 }
-.wordmark { flex: none; }
+.brand { flex: none; display: flex; align-items: baseline; gap: 0.5rem; }
+
+/* The version this site documents. .TH cannot supply it -- its version field
+   records when each command was introduced, not the release -- so it comes
+   from -version and is simply absent when that is not given. */
+.ver {
+  font: 500 0.72rem/1 var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
 .wordmark span { color: var(--muted); font-weight: 400; }
 
 .searchwrap { position: relative; flex: 1 1 auto; min-width: 0; max-width: 34rem; }

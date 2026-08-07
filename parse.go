@@ -57,6 +57,7 @@ type Page struct {
 	Title     string   // display name, from .TH (may contain spaces)
 	Names     []string // every name on the NAME line
 	Section   string   // n, 1 or 3
+	Version   string   // .TH's version field: when this page's command arrived
 	Source    string   // .TH's source field: the distribution the page ships in
 	Manual    string   // trailing quoted field of .TH
 	Summary   string
@@ -526,6 +527,14 @@ func (p *parser) macro(name, rest string) {
 		}
 		if len(a) > 0 {
 			p.page.Manual = plain(a[len(a)-1])
+		}
+		// The version field follows the section, or the name where the section
+		// is missing. It records when the command was introduced rather than
+		// the release, but the newest across a distribution is the release.
+		if sec >= 0 && sec+1 < len(a) {
+			p.page.Version = plain(a[sec+1])
+		} else if sec < 0 && len(a) > 1 {
+			p.page.Version = plain(arg(1))
 		}
 		// The source field names the distribution the page ships in, and sits
 		// immediately before the manual title. Counting forward from the
