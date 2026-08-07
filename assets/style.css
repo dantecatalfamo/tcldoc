@@ -1,0 +1,456 @@
+/* tcldoc — reference documentation for Tcl/Tk
+ *
+ * Palette derives from the classic Tk widget look: cool Motif grey paper, deep
+ * slate ink, Tk's selection blue as the accent. Command names are set in mono
+ * throughout, because the thing you are looking up is always a literal token.
+ *
+ * The argument-notation colours are the load-bearing idea: troff distinguishes
+ * literal syntax (bold) from substitutable arguments (italic), and Tcl marks
+ * optional groups with ?question marks?. All three get separate treatment. */
+
+:root {
+  --paper: #eceff1;
+  --card: #f7f9fa;
+  --ink: #1c2529;
+  --muted: #5a6a72;
+  --rule: #cdd6da;
+  --accent: #1f5c8b;
+  --accent-soft: #dbe6ee;
+  --literal: #0f3b57;
+  --substit: #6b3fa0;
+  --optional: #8a949a;
+
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --measure: 68ch;
+  --gap: 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #161b1e;
+    --card: #1e2529;
+    --ink: #dde5e8;
+    --muted: #8fa0a8;
+    --rule: #2f3a40;
+    --accent: #74b3e0;
+    --accent-soft: #223440;
+    --literal: #9fd0ee;
+    --substit: #c3a6e8;
+    --optional: #7b878d;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.65 var(--sans);
+  font-synthesis: none;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- masthead ---------------------------------------------------------- */
+
+.masthead {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--gap);
+  padding: 0.7rem 1.25rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  font: 600 0.95rem/1 var(--mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.wordmark { flex: none; }
+.wordmark span { color: var(--muted); font-weight: 400; }
+
+.searchwrap { position: relative; flex: 1 1 auto; min-width: 0; max-width: 34rem; }
+
+.searchwrap input {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  font: 400 0.95rem/1.4 var(--mono);
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.searchwrap input::placeholder { color: var(--muted); }
+/* Only the masthead box carries the "/" hint; keep the placeholder clear of it. */
+.masthead .searchwrap input { padding-right: 2.2rem; }
+.searchwrap input:focus {
+  border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+kbd {
+  font: 500 0.7rem/1 var(--mono);
+  padding: 0.2em 0.4em;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--muted);
+}
+.hint { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.searchwrap input:focus ~ .hint,
+.searchwrap input:not(:placeholder-shown) ~ .hint { display: none; }
+
+/* The masthead carries one link, not a manual list: the corpus can run to
+   hundreds of manuals, and they belong on the landing page. */
+.mastnav { flex: none; margin-left: auto; font-size: 0.85rem; white-space: nowrap; }
+.mastnav a { color: var(--muted); text-decoration: none; }
+.mastnav a:hover { color: var(--ink); }
+
+/* ---- search results ---------------------------------------------------- */
+
+.results {
+  position: absolute; top: calc(100% + 0.4rem); left: 0; right: 0; z-index: 30;
+  max-height: min(70vh, 34rem); overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.13);
+  display: none;
+  text-align: left;
+}
+.results[data-open] { display: block; }
+.results ol { margin: 0; padding: 0; list-style: none; }
+.results li { border-bottom: 1px solid var(--rule); margin: 0; }
+.results li:last-child { border-bottom: 0; }
+.results a {
+  display: block; padding: 0.5rem 0.7rem; text-decoration: none; color: inherit;
+}
+.results a:hover, .results li[data-sel] a { background: var(--accent-soft); }
+.results .rn { font: 500 0.9rem/1.3 var(--mono); color: var(--literal); }
+.results .rk {
+  font: 500 0.65rem/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin-left: 0.5rem;
+}
+.results .rd { display: block; font-size: 0.8rem; color: var(--muted); }
+.results .empty, .results .status { padding: 0.7rem; font-size: 0.85rem; color: var(--muted); }
+
+/* ---- layout ------------------------------------------------------------ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr) 13rem;
+  gap: calc(var(--gap) * 1.5);
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 6rem;
+}
+.shell.wide { grid-template-columns: minmax(0, 1fr); }
+.shell.wide main { max-width: none; }
+
+.rail { font-size: 0.875rem; }
+.rail-sticky { position: sticky; top: 4.2rem; max-height: calc(100vh - 6rem); overflow-y: auto; }
+.rail h2 {
+  font: 500 0.68rem/1 var(--sans); text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--muted); margin: 0 0 0.6rem;
+}
+.rail ul { list-style: none; margin: 0 0 1.4rem; padding: 0; }
+.rail li { margin: 0.18rem 0; }
+.rail a { color: var(--muted); text-decoration: none; display: block; }
+.rail a:hover { color: var(--ink); }
+.rail a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+.rail .sub { padding-left: 0.85rem; font-size: 0.83em; }
+
+main { min-width: 0; max-width: var(--measure); }
+
+/* ---- page header ------------------------------------------------------- */
+
+.crumbs { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+.crumbs a { color: var(--muted); }
+
+/* The distribution a page ships in, from the .TH source field. */
+.dist {
+  margin-left: 0.4rem; padding: 0.05rem 0.4rem;
+  font: 500 0.72rem/1.5 var(--mono);
+  color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 999px;
+  white-space: nowrap;
+}
+
+h1 {
+  font: 600 2rem/1.15 var(--mono);
+  letter-spacing: -0.025em;
+  margin: 0 0 0.3rem;
+  overflow-wrap: break-word;
+}
+.tagline { font-size: 1.05rem; color: var(--muted); margin: 0 0 1.2rem; }
+
+.aka { font-size: 0.85rem; color: var(--muted); margin: -0.6rem 0 1.2rem; }
+.aka code { font-size: 0.95em; }
+
+/* The legend is the signature element: it teaches the notation once, at the
+   top of every page, so the colours in the body are self-explanatory. */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem;
+  margin: 0 0 2rem; padding: 0.6rem 0.8rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 3px 3px 0;
+  font-size: 0.78rem; color: var(--muted);
+}
+.legend b { font: 500 0.85rem/1 var(--mono); color: var(--literal); font-weight: 500; }
+.legend i { font: 400 0.85rem/1 var(--mono); color: var(--substit); font-style: normal; }
+.legend s { font: 400 0.85rem/1 var(--mono); color: var(--optional); text-decoration: none; }
+
+/* ---- prose ------------------------------------------------------------- */
+
+h2, h3 {
+  font-family: var(--mono);
+  letter-spacing: -0.015em;
+  scroll-margin-top: 4.5rem;
+}
+h2 {
+  font-size: 1.15rem; font-weight: 600;
+  margin: 2.4rem 0 0.9rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--rule);
+}
+h3 { font-size: 1rem; font-weight: 600; margin: 1.8rem 0 0.6rem; }
+
+p { margin: 0 0 1rem; }
+
+.anchor {
+  margin-left: 0.4rem; color: var(--rule); text-decoration: none;
+  font-family: var(--mono); font-weight: 400;
+  opacity: 0; transition: opacity 0.1s;
+}
+h2:hover .anchor, h3:hover .anchor, dt:hover .anchor, .anchor:focus-visible { opacity: 1; }
+.anchor:hover { color: var(--accent); }
+
+/* Literal syntax versus substitutable argument: the whole point. */
+code {
+  font: 500 0.9em/1.5 var(--mono);
+  color: var(--literal);
+  overflow-wrap: break-word;
+}
+var {
+  font: 400 0.9em/1.5 var(--mono);
+  font-style: normal;
+  color: var(--substit);
+}
+
+pre {
+  margin: 0 0 1.2rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow-x: auto;
+  tab-size: 4;
+}
+pre code { font-weight: 400; color: var(--ink); font-size: 0.85rem; line-height: 1.6; }
+
+dl { margin: 0 0 1.2rem; }
+dt {
+  margin: 1.3rem 0 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  scroll-margin-top: 4.5rem;
+  overflow-wrap: break-word;
+}
+dt > code:first-child { font-weight: 600; }
+dd { margin: 0 0 0 1.25rem; }
+dd > :last-child { margin-bottom: 0; }
+
+.opt { color: var(--optional); }
+
+ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+li { margin: 0.25rem 0; }
+
+.indent { margin-left: 1.25rem; }
+
+.note {
+  font-size: 0.9rem; color: var(--muted);
+  border-left: 2px solid var(--rule); padding-left: 0.8rem;
+}
+
+.io { color: var(--muted); font-family: var(--sans); font-size: 0.8em; }
+
+.opmeta { border-collapse: collapse; font-size: 0.82rem; margin: 0 0 0.7rem; }
+.opmeta th {
+  text-align: left; font-weight: 400; color: var(--muted);
+  padding: 0.1rem 0.9rem 0.1rem 0; white-space: nowrap;
+}
+.opmeta td { padding: 0.1rem 0; }
+
+/* Standard options: a set of names, laid out in even columns rather than in
+   whatever the source's tab stops happened to produce. */
+.stdopts {
+  list-style: none;
+  margin: 0 0 1.2rem;
+  padding: 0.8rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  /* Multi-column rather than grid, so the names read alphabetically down each
+     column the way the A-Z indexes do. */
+  columns: 12rem auto;
+  column-gap: 1.5rem;
+}
+.stdopts li { margin: 0; break-inside: avoid; }
+.stdopts a {
+  font: 400 0.85rem/1.7 var(--mono);
+  text-decoration: none;
+  display: block;
+}
+.stdopts a:hover { text-decoration: underline; }
+
+.seealso { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0; list-style: none; }
+.seealso li { margin: 0; }
+.seealso a {
+  display: inline-block; padding: 0.1rem 0.45rem;
+  font: 400 0.85rem/1.5 var(--mono);
+  background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+  text-decoration: none;
+}
+.seealso a:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.keywords { font-size: 0.85rem; color: var(--muted); }
+
+/* ---- index pages ------------------------------------------------------- */
+
+.lede { max-width: var(--measure); font-size: 1.05rem; color: var(--muted); margin: 0 0 2rem; }
+
+.jump { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 2rem; }
+.jump a {
+  min-width: 1.7rem; text-align: center; padding: 0.15rem 0.3rem;
+  font: 500 0.8rem/1.4 var(--mono);
+  border: 1px solid var(--rule); border-radius: 3px;
+  text-decoration: none;
+}
+.jump a:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+.letter {
+  font: 600 0.8rem/1 var(--mono); color: var(--muted);
+  margin: 2rem 0 0.6rem; padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+  scroll-margin-top: 4.5rem;
+}
+
+.cmdlist { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 2.5rem; }
+.cmdlist li { margin: 0 0 0.45rem; break-inside: avoid; }
+.cmdlist a { font: 500 0.9rem/1.4 var(--mono); color: var(--literal); text-decoration: none; }
+.cmdlist a:hover { text-decoration: underline; }
+.cmdlist .d { display: block; font-size: 0.8rem; color: var(--muted); }
+
+/* Subcommands sit under their command as a wrapped run of short links. One
+   command with twenty subcommands is two lines here, not twenty-one rows. */
+.cmdlist .subs { display: block; margin-top: 0.15rem; }
+.cmdlist .subs a {
+  font: 400 0.8rem/1.75 var(--mono);
+  color: var(--muted);
+  margin-right: 0.6rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cmdlist .subs a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ---- landing page ------------------------------------------------------ */
+
+/* The hero is the whole point of the landing page: one line of orientation and
+   a search box big enough to be the obvious next action. */
+.hero {
+  max-width: var(--measure);
+  margin: 2rem auto 3.5rem;
+  text-align: center;
+}
+.hero h1 { font-size: 2.4rem; margin-bottom: 0.6rem; }
+.hero .lede { margin: 0 auto 1.8rem; }
+
+.herosearch { max-width: none; margin: 0 auto; }
+.herosearch input { padding: 0.7rem 1rem; font-size: 1.05rem; border-radius: 4px; }
+
+.stat { margin: 0.9rem 0 0; font-size: 0.82rem; color: var(--muted); }
+
+/* The manual count beside each distribution heading. */
+.scount {
+  font: 400 0.78rem/1 var(--sans); color: var(--muted);
+  letter-spacing: 0; margin-left: 0.5rem;
+}
+
+/* The leading section keeps the card treatment; it is the contrast against the
+   flat lists below that makes it read as the place to start. */
+.cards {
+  list-style: none; margin: 0 0 1rem; padding: 0;
+  display: grid; gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+.cards li { margin: 0; }
+.cards a {
+  display: block; height: 100%; padding: 0.8rem 1rem;
+  background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+  text-decoration: none;
+}
+.cards a:hover { border-color: var(--accent); }
+.cards .mn { font: 600 0.95rem/1.35 var(--mono); color: var(--ink); }
+.cards .mc { display: block; font-size: 0.8rem; color: var(--muted); }
+
+/* A flat multi-column list, not a stack of cards: at this length the cards
+   were all weight and no information. */
+.manuals {
+  list-style: none; margin: 0; padding: 0;
+  columns: 20rem 3; column-gap: 2.5rem;
+}
+.manuals li { margin: 0 0 0.7rem; break-inside: avoid; }
+.manuals a { display: block; text-decoration: none; }
+.manuals .mn {
+  font: 500 0.92rem/1.4 var(--mono); color: var(--accent);
+  text-decoration: underline; text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+.manuals a:hover .mn { text-decoration-color: currentColor; }
+.manuals .mc { display: block; font-size: 0.78rem; color: var(--muted); }
+
+footer {
+  max-width: 84rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.8rem; color: var(--muted);
+}
+
+/* ---- responsive -------------------------------------------------------- */
+
+@media (max-width: 60rem) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  .rail-sticky { position: static; max-height: none; }
+  .rail.toc { order: -1; }
+  .rail.toc ul { columns: 2; column-gap: 1.5rem; }
+  .cmdlist { columns: 1; }
+  .mastnav { display: none; }
+}
+
+@media (max-width: 34rem) {
+  body { font-size: 15px; }
+  h1 { font-size: 1.5rem; }
+  .rail.toc ul { columns: 1; }
+  .masthead { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+@media print {
+  .masthead, .rail, footer, .anchor, .legend { display: none; }
+  .shell { display: block; max-width: none; }
+  body { font-size: 11pt; }
+}

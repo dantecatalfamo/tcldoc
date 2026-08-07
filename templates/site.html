@@ -1,0 +1,172 @@
+{{define "head"}}<!DOCTYPE html>
+<html lang="en" data-root="{{.Root}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="{{.Root}}/style.css">
+</head>
+<body>
+<header class="masthead">
+  <a class="wordmark" href="{{.Root}}/">tcl<span>doc</span></a>
+  <div class="searchwrap">
+    <label for="q" hidden>Search the documentation</label>
+    <input id="q" data-search type="search" autocomplete="off" spellcheck="false"
+           placeholder="Search commands, subcommands, options, prose">
+    <span class="hint"><kbd>/</kbd></span>
+    <div class="results" role="listbox" aria-label="Search results"></div>
+  </div>
+  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a></nav>
+</header>
+{{end}}
+
+{{define "foot"}}
+<footer>
+  <p>Generated from the Tcl and Tk manual page sources. Documentation is
+  copyright its respective authors; see the upstream distribution for terms.</p>
+</footer>
+<script src="{{.Root}}/search.js" defer></script>
+</body>
+</html>
+{{end}}
+
+{{define "page"}}{{template "head" .}}
+<div class="shell">
+  <nav class="rail" aria-label="In this manual">
+    <div class="rail-sticky">
+      <h2>Manual</h2>
+      <ul>
+        <li><a href="{{.Root}}/{{.ManualURL}}" aria-current="page">{{.Page.Manual}}</a></li>
+        <li><a href="{{.Root}}/">All manuals</a></li>
+      </ul>
+      {{if .Subcmds}}
+      <h2>Subcommands</h2>
+      <ul>
+        {{range .Subcmds}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
+      </ul>
+      {{end}}
+      {{if .Defs}}
+      <h2>{{.DefsLabel}}</h2>
+      <ul>
+        {{range .Defs}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
+      </ul>
+      {{end}}
+      {{if .Options}}
+      <h2>Options</h2>
+      <ul>
+        {{range .Options}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
+      </ul>
+      {{end}}
+    </div>
+  </nav>
+
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">Home</a> &rsaquo;
+      <a href="{{.Root}}/{{.ManualURL}}">{{.Page.Manual}}</a>{{with .Dist}}
+      <span class="dist" title="Distribution this page ships in">{{.}}</span>{{end}}</p>
+    <h1>{{.Page.Title}}</h1>
+    {{with .Page.Summary}}<p class="tagline">{{.}}</p>{{end}}
+    {{if .AlsoNames}}<p class="aka">Also documents {{range $i, $n := .AlsoNames}}{{if $i}}, {{end}}<code>{{$n}}</code>{{end}}</p>{{end}}
+
+    <p class="legend">
+      <span><b>literal</b> type exactly as shown</span>
+      <span><i>argument</i> replace with your value</span>
+      <span><s>?optional?</s> may be omitted</span>
+    </p>
+
+    {{.Body}}
+
+    {{if .SeeAlso}}
+    <h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Permalink">#</a></h2>
+    <ul class="seealso">{{range .SeeAlso}}<li><a href="{{.URL}}">{{.Name}}</a></li>{{end}}</ul>
+    {{end}}
+
+    {{if .Page.Keywords}}
+    <h2 id="keywords">Keywords<a class="anchor" href="#keywords" aria-label="Permalink">#</a></h2>
+    <p class="keywords">{{range $i, $k := .Page.Keywords}}{{if $i}} &middot; {{end}}{{$k}}{{end}}</p>
+    {{end}}
+  </main>
+
+  <nav class="rail toc" aria-label="On this page">
+    <div class="rail-sticky">
+      <h2>On this page</h2>
+      <ul>
+        {{range .TOC}}<li{{if .Sub}} class="sub"{{end}}><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}
+      </ul>
+    </div>
+  </nav>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "index"}}{{template "head" .}}
+<div class="shell wide">
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">All manuals</a>{{with .Dist}}
+      <span class="dist" title="Distribution this manual ships in">{{.}}</span>{{end}}</p>
+    <h1>{{.Manual}}</h1>
+    <p class="lede">{{plural .Count "command" "commands"}}, with their ensemble
+    subcommands grouped underneath. Every link goes straight to its own
+    definition rather than to the top of a page. Options and the other per-page
+    definitions are listed on the page that defines them, and everything is
+    searchable from anywhere.</p>
+    <nav class="jump" aria-label="Jump to letter">
+      {{range .Groups}}<a href="#l-{{.ID}}">{{.Letter}}</a>{{end}}
+    </nav>
+    {{range .Groups}}
+    <h2 class="letter" id="l-{{.ID}}">{{.Letter}}</h2>
+    <ul class="cmdlist">
+      {{range .Entries}}
+      <li><a href="{{$.Root}}/{{.URL}}">{{.Name}}</a>
+        {{with .Desc}}<span class="d">{{.}}</span>{{end}}
+        {{/* the space after each link is load-bearing: it is the only place the
+             run of subcommands is allowed to wrap */}}
+        {{with .Subs}}<span class="subs">{{range .}}<a href="{{$.Root}}/{{.URL}}">{{.Name}}</a> {{end}}</span>{{end}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "home"}}{{template "head" .}}
+<div class="shell wide">
+  <main>
+    <div class="hero">
+      <h1>Tcl/Tk reference</h1>
+      <p class="lede">Every command, subcommand, method and widget option from
+      the manual pages &mdash; individually addressable, individually
+      searchable.</p>
+      <div class="searchwrap herosearch">
+        <label for="hq" hidden>Search the documentation</label>
+        <input id="hq" data-search type="search" autocomplete="off" spellcheck="false"
+               placeholder="Search commands, subcommands, options, prose">
+        <div class="results" role="listbox" aria-label="Search results"></div>
+      </div>
+      <p class="stat">{{plural .Entries "entry" "entries"}} across
+      {{plural .Pages "page" "pages"}} in {{plural (len .Manuals) "manual" "manuals"}}.
+      Press <kbd>/</kbd> to search from any page.</p>
+    </div>
+
+    {{if .Featured}}
+    <h2 id="start">Start here<a class="anchor" href="#start" aria-label="Permalink">#</a></h2>
+    <ul class="cards">
+      {{range .Featured}}
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}</span>
+        <span class="mc">{{.Desc}}{{with .Dist}} &middot; {{.}}{{end}}</span></a></li>
+      {{end}}
+    </ul>
+    {{end}}
+
+    {{range .Sections}}{{$sec := .}}
+    <h2 id="d-{{.ID}}">{{.Label}} <span class="scount">{{.Desc}}</span><a class="anchor" href="#d-{{.ID}}" aria-label="Permalink">#</a></h2>
+    <ul class="manuals">
+      {{range .Manuals}}
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}</span>
+        {{/* the distribution is redundant where it just repeats the heading */}}
+        <span class="mc">{{.Desc}}{{if ne .Dist $sec.Label}}{{with .Dist}} &middot; {{.}}{{end}}{{end}}</span></a></li>
+      {{end}}
+    </ul>
+    {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
