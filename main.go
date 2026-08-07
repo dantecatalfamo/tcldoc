@@ -362,6 +362,12 @@ func normalizeManual(m string) string {
 	// The tepam pages spell the same manual title both ways, which would
 	// otherwise split it into two manuals on the landing page.
 	m = strings.ReplaceAll(m, "’", "'")
+	// tclsh and wish declare separate manuals of one page each. They are the
+	// same thing -- the interpreters you invoke -- and upstream files them
+	// together under this name.
+	if m == "Tcl Applications" || m == "Tk Applications" {
+		return "Tcl/Tk Applications"
+	}
 	if strings.Contains(m, "Float ") || strings.Contains(m, "Integer Division") {
 		return "Tcl Mathematical Functions"
 	}
@@ -555,7 +561,7 @@ var featuredManuals = []string{
 	// What most scripts reach for beyond the core: http, msgcat, tcltest.
 	"Tcl Bundled Packages",
 	// Where you actually start: tclsh and wish.
-	"Tcl Applications",
+	"Tcl/Tk Applications",
 }
 
 const featuredCount = 8
