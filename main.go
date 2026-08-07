@@ -449,15 +449,27 @@ func markOptional(h string) string {
 // packages (658) -- among the largest manuals present and among the least
 // likely to be why anyone opened the site -- while ttk, the modern widget set,
 // does not make the cut at 200.
+//
+// It is also deliberately short of things the sections below already show
+// well. Tcl and Tk lists ten manuals and Bundled packages five, all of them
+// visible without scrolling, so featuring TDBC or Thread bought a duplicate
+// rather than a shortcut. The one section a reader cannot take in at a glance
+// is tcllib's 136, and no single tcllib manual represents the rest of them --
+// so none is picked, rather than an arbitrary one.
 var featuredManuals = []string{
+	// The language and the widgets.
 	"Tcl Built-In Commands",
 	"Tk Built-In Commands",
 	"Tk Themed Widget",
 	"TclOO Commands",
+	// The C API: 190 pages, a fifth of the site, and the reason a reader is
+	// here at all if they are embedding Tcl rather than scripting it.
+	"Tcl Library Procedures",
+	"Tk Library Procedures",
+	// What most scripts reach for beyond the core: http, msgcat, tcltest.
 	"Tcl Bundled Packages",
-	"Tcl Database Connectivity",
-	"Tcl Threading",
-	"Tcl Math Library",
+	// Where you actually start: tclsh and wish.
+	"Tcl Applications",
 }
 
 const featuredCount = 8
