@@ -19,7 +19,7 @@
     <span class="hint"><kbd>/</kbd></span>
     <div class="results" role="listbox" aria-label="Search results"></div>
   </div>
-  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a>{{if .HasDemos}}<a href="{{.Root}}/demos/">Demos</a>{{end}}</nav>
+  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a>{{if .HasKeywords}}<a href="{{.Root}}/keywords/">Keywords</a>{{end}}{{if .HasDemos}}<a href="{{.Root}}/demos/">Demos</a>{{end}}</nav>
   {{/* hidden until the script reveals it: with JavaScript off it would do nothing */}}
   <div id="theme" class="themewrap" hidden>
     <span class="themelabel">Theme</span>
@@ -93,9 +93,14 @@
     <ul class="seealso">{{range .SeeAlso}}<li><a href="{{.URL}}">{{.Name}}</a></li>{{end}}</ul>
     {{end}}
 
-    {{if .Page.Keywords}}
+    {{if .Keywords}}
     <h2 id="keywords">Keywords<a class="anchor" href="#keywords" aria-label="Permalink">#</a></h2>
-    <p class="keywords">{{range $i, $k := .Page.Keywords}}{{if $i}} &middot; {{end}}{{$k}}{{end}}</p>
+    <p class="keywords">{{range $i, $k := .Keywords}}{{if $i}} &middot; {{end}}{{if $k.URL}}<a href="{{$.Root}}/{{$k.URL}}">{{$k.Name}}</a>{{else}}{{$k.Name}}{{end}}{{end}}</p>
+    {{end}}
+
+    {{if .Copyright}}
+    <h2 id="attribution">Copyright<a class="anchor" href="#attribution" aria-label="Permalink">#</a></h2>
+    <ul class="credits">{{range .Copyright}}<li>{{.}}</li>{{end}}</ul>
     {{end}}
   </main>
 
@@ -130,6 +135,34 @@
         {{/* the space after each link is load-bearing: it is the only place the
              run of subcommands is allowed to wrap */}}
         {{with .Subs}}<span class="subs">{{range .}}<a href="{{$.Root}}/{{.URL}}">{{.Name}}</a> {{end}}</span>{{end}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+
+    {{if .Copyright}}
+    <h2 id="attribution">Copyright<a class="anchor" href="#attribution" aria-label="Permalink">#</a></h2>
+    <ul class="credits">{{range .Copyright}}<li>{{.}}</li>{{end}}</ul>
+    {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "keywords"}}{{template "head" .}}
+<div class="shell wide">
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">All manuals</a></p>
+    <h1>Keywords</h1>
+    <p class="count">{{plural .Count "keyword" "keywords"}} over {{plural .Pairs "page reference" "page references"}}</p>
+    <nav class="jump" aria-label="Jump to letter">
+      {{range .Groups}}<a href="#l-{{.ID}}">{{.Letter}}</a>{{end}}
+    </nav>
+    {{range .Groups}}
+    <h2 class="letter" id="l-{{.ID}}">{{.Letter}}</h2>
+    <ul class="cmdlist">
+      {{range .Entries}}
+      <li><span class="kwname" id="k-{{.ID}}">{{.Name}}</span>
+        {{/* the trailing space is the only place this run may wrap */}}
+        <span class="subs">{{range .Pages}}<a href="{{$.Root}}/{{.URL}}">{{.Name}}</a> {{end}}</span></li>
       {{end}}
     </ul>
     {{end}}

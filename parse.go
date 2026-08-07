@@ -52,18 +52,19 @@ type Entry struct {
 }
 
 type Page struct {
-	File     string
-	Name     string   // identity: derived from the source filename
-	Title    string   // display name, from .TH (may contain spaces)
-	Names    []string // every name on the NAME line
-	Section  string   // n, 1 or 3
-	Source   string   // .TH's source field: the distribution the page ships in
-	Manual   string   // trailing quoted field of .TH
-	Summary  string
-	Keywords []string
-	SeeAlso  []string
-	Entries  []Entry
-	Root     *Node
+	File      string
+	Name      string   // identity: derived from the source filename
+	Title     string   // display name, from .TH (may contain spaces)
+	Names     []string // every name on the NAME line
+	Section   string   // n, 1 or 3
+	Source    string   // .TH's source field: the distribution the page ships in
+	Manual    string   // trailing quoted field of .TH
+	Summary   string
+	Keywords  []string
+	SeeAlso   []string
+	Copyright []string // from the .\" comment header above .TH
+	Entries   []Entry
+	Root      *Node
 }
 
 // skipMacros are layout, register and conditional directives with no bearing on
@@ -83,6 +84,23 @@ func slug(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = slugBad.ReplaceAllString(s, "-")
 	return strings.Trim(s, "-")
+}
+
+// copyrightRe matches an attribution in a troff comment. The corpus writes the
+// symbol three ways: "(c)", the \(co escape, and a literal ©.
+var copyrightRe = regexp.MustCompile(`(?i)^[.']\\"\s*(copyright\b.*?)\s*$`)
+
+// copyrightIn pulls the attribution out of a comment line, normalising the
+// symbol and the trailing stop so that "Sun Microsystems, Inc." and "Sun
+// Microsystems, Inc" collapse to one entry when a manual's pages are pooled.
+func copyrightIn(line string) string {
+	m := copyrightRe.FindStringSubmatch(line)
+	if m == nil {
+		return ""
+	}
+	c := plain(m[1])
+	c = strings.NewReplacer("(c)", "©", "(C)", "©").Replace(c)
+	return strings.TrimRight(c, ". \t")
 }
 
 // anchorFor keeps the leading hyphen of an option name, so the anchor for
@@ -147,7 +165,14 @@ func titleize(s string) string {
 	return out
 }
 
-var firstCode = regexp.MustCompile(`(?s)^\s*<code>(.*?)</code>`)
+// firstCode captures the leading run of bold text, which is the callable
+// signature. It has to span consecutive bold runs: troff sets
+// "thread::mutex create" as two of them, \fBthread::mutex\fR \fBcreate\fR, and
+// stopping at the first collapsed that page's create, destroy, lock and unlock
+// onto the single name "thread::mutex", so only one of the four survived.
+// A run ends at the first italic or roman text, which is where the arguments
+// begin.
+var firstCode = regexp.MustCompile(`(?s)^\s*((?:<code>.*?</code>[ \t]*)+)`)
 var tagStrip = regexp.MustCompile(`<[^>]+>`)
 
 type parser struct {
@@ -174,8 +199,24 @@ func newParser() *parser {
 		stack: []*Node{root},
 		ins:   newInline(),
 		seen:  map[string]bool{},
-		ids:   map[string]int{},
+		ids:   reservedIDs(),
 	}
+}
+
+// reservedIDs seeds the anchor counter with the ids the template and the
+// masthead emit, which the parser has no other way to know about. doctools
+// documents commands called "see_also" and "keywords", and re_syntax defines
+// "q": each slugs onto a fixed id and produced a duplicate, so "#see-also"
+// jumped to the definition instead of the section.
+func reservedIDs() map[string]int {
+	ids := map[string]int{}
+	for _, id := range []string{
+		"see-also", "keywords", "attribution", // page template
+		"q", "theme", "results", // masthead
+	} {
+		ids[id] = 1
+	}
+	return ids
 }
 
 func (p *parser) top() *Node { return p.stack[len(p.stack)-1] }
@@ -343,7 +384,11 @@ func (p *parser) registerEntry(n *Node) {
 		kind = "option"
 	case strings.Contains(p.section, "OPTION"):
 		kind = "option"
-	case strings.Contains(lead, " "):
+	case strings.Contains(lead, " ") && commandLike(lead) && p.page.Section != "3":
+		// Section 3 is the C API, where a Tcl ensemble subcommand cannot
+		// occur: a multi-word label there is a property or a heading.
+		// Tcl_CreateEnsemble alone lists five, "mapping dictionary" among
+		// them, and they are lowercase so commandLike cannot tell.
 		kind = "subcommand"
 	case strings.Contains(p.section, "METHOD"):
 		kind = "method"
@@ -397,6 +442,7 @@ func (p *parser) defItem(kind Kind) *Node {
 func (p *parser) parse(src string) *Page {
 	lines := strings.Split(src, "\n")
 	inDef := false // inside a .de macro definition (inlined man.macros)
+	sawTH := false // past the comment header, so comments are macros not credits
 
 	for _, raw := range lines {
 		line := strings.TrimRight(raw, " \t\r")
@@ -417,6 +463,15 @@ func (p *parser) parse(src string) *Page {
 		}
 		if strings.HasPrefix(line, `.\"`) || strings.HasPrefix(line, `'\"`) ||
 			strings.HasPrefix(line, `.'`) || line == "." {
+			// Attribution lives in the comment header above .TH — that is where
+			// every page in the corpus puts it, and where upstream's converter
+			// reads it from. Comments below .TH are the inlined man.macros,
+			// which carry a notice of their own that is not the page's.
+			if !sawTH {
+				if c := copyrightIn(line); c != "" {
+					p.page.Copyright = append(p.page.Copyright, c)
+				}
+			}
 			continue
 		}
 		if strings.HasPrefix(line, ".de") || strings.HasPrefix(line, ".am") {
@@ -427,6 +482,9 @@ func (p *parser) parse(src string) *Page {
 		name, rest := line[1:], ""
 		if i := strings.IndexAny(name, " \t"); i >= 0 {
 			name, rest = name[:i], strings.TrimLeft(name[i:], " \t")
+		}
+		if name == "TH" {
+			sawTH = true
 		}
 		if skipMacros[name] {
 			continue

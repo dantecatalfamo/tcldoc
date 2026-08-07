@@ -139,43 +139,49 @@ func buildTOC(n *Node) []tocItem {
 }
 
 type pageView struct {
-	Page      *Page
-	Body      template.HTML
-	TOC       []tocItem
-	Subcmds   []Entry
-	Options   []Entry
-	Defs      []Entry // anchored definitions that are neither subcommand nor option
-	DefsLabel string
-	SeeAlso   []seeLink
-	Root      string
-	HasDemos  bool
+	Page        *Page
+	Body        template.HTML
+	TOC         []tocItem
+	Subcmds     []Entry
+	Options     []Entry
+	Defs        []Entry // anchored definitions that are neither subcommand nor option
+	DefsLabel   string
+	Copyright   []string
+	SeeAlso     []seeLink
+	Root        string
+	HasDemos    bool
+	HasKeywords bool
+	Keywords    []seeLink // linked into the keyword index
 }
 
 type seeLink struct{ Name, URL string }
 
 type indexView struct {
-	Title    string
-	Manual   string
-	Dist     string
-	Summary  string // the manual's own description, where it has one
-	Groups   []indexGroup
-	Root     string
-	Count    int
-	HasDemos bool
+	Title       string
+	Manual      string
+	Dist        string
+	Summary     string // the manual's own description, where it has one
+	Groups      []indexGroup
+	Root        string
+	Count       int
+	HasDemos    bool
+	HasKeywords bool
+	Copyright   []string // pooled from every page in the manual
 }
 
 // homeView is the landing page: a search box and a compact list of manuals.
 // The manual list lives here and nowhere else — the corpus can run to a couple
 // of hundred manuals, which is far more than a masthead or a rail can hold.
 type homeView struct {
-	Title    string
-	Root     string
-	Featured []manualCard // the manuals worth putting in front of a new reader
-	Sections []manualSection
-	Manuals  []manualCard // flat, for the totals
-	Pages    int
-	Entries  int
-	HasDemos bool
+	Title       string
+	Root        string
+	Featured    []manualCard // the manuals worth putting in front of a new reader
+	Sections    []manualSection
+	Manuals     []manualCard // flat, for the totals
+	Pages       int
+	Entries     int
+	HasDemos    bool
+	HasKeywords bool
 }
 
 // manualSection is one distribution's worth of manuals on the landing page.
@@ -194,11 +200,12 @@ type manualCard struct {
 // demosView is the shared frame for the demonstration pages: both the index
 // and each script get the same rail listing every demo.
 type demosView struct {
-	Title    string
-	Root     string
-	HasDemos bool
-	Programs []*demo
-	Packages []*demo
+	Title       string
+	Root        string
+	HasDemos    bool
+	HasKeywords bool
+	Programs    []*demo
+	Packages    []*demo
 }
 
 type demoView struct {
@@ -219,6 +226,30 @@ type indexEntry struct {
 }
 
 type subLink struct{ Name, URL string }
+
+// keywordsView is the aggregated keyword index: every .SH KEYWORDS term in the
+// corpus, with the pages that claim it. Upstream ships one of these too.
+type keywordsView struct {
+	Title       string
+	Root        string
+	HasDemos    bool
+	HasKeywords bool
+	Count       int
+	Pairs       int
+	Groups      []keywordGroup
+}
+
+type keywordGroup struct {
+	Letter  string
+	ID      string
+	Entries []keywordEntry
+}
+
+type keywordEntry struct {
+	Name  string
+	ID    string
+	Pages []subLink
+}
 
 func groupByLetter(entries []indexEntry) []indexGroup {
 	sort.Slice(entries, func(i, j int) bool {

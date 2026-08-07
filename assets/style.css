@@ -531,3 +531,19 @@ footer {
   .shell { display: block; max-width: none; }
   body { font-size: 11pt; }
 }
+
+/* Attribution, from the .\" comment header each page carries. On a manual
+   index this is the union across its pages, which runs to a few dozen. */
+.credits {
+  list-style: none; margin: 0; padding: 0;
+  columns: 21rem auto; column-gap: 2rem;
+  font-size: 0.8rem; color: var(--muted);
+}
+.credits li { margin: 0 0 0.15rem; break-inside: avoid; }
+
+/* A keyword is a heading for its pages, not a link of its own. */
+.kwname {
+  font: 500 0.9rem/1.4 var(--mono);
+  color: var(--ink);
+  scroll-margin-top: 4.5rem;
+}

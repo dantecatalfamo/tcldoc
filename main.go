@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -93,7 +94,12 @@ func main() {
 
 // --- discovery -------------------------------------------------------------
 
-var pageExt = regexp.MustCompile(`\.(n|1|3|n(tcl|tk))$`)
+// pageExt matches a manual page filename. An installed tree suffixes the
+// section with the package it came from, so section 3 arrives as ".3tcl" and
+// ".3tk" just as section n arrives as ".ntcl" and ".ntk". Spelling only the
+// section-n suffixes, as this did, silently dropped the entire C API: 969 of
+// the 970 files in man3, plus tclsh.1tcl and wish.1tk.
+var pageExt = regexp.MustCompile(`\.(n|1|3)(tcl|tk)?$`)
 
 func discover(roots []string) ([]string, error) {
 	seen := map[string]bool{}
@@ -459,6 +465,65 @@ func pickFeatured(all []manualCard) []manualCard {
 	return out
 }
 
+// --- the keyword index -----------------------------------------------------
+
+// buildKeywords pools every page's .SH KEYWORDS terms into one A-Z index. The
+// keywords are already parsed and shown per page; this is the aggregation the
+// official site has under Keywords/ and this did not.
+func buildKeywords(s *site) keywordsView {
+	pagesFor := map[string][]subLink{}
+	seen := map[string]bool{} // keyword + page, so a repeat on one page is not two links
+	for _, m := range s.Manuals {
+		for _, p := range m.Pages {
+			for _, k := range p.Keywords {
+				key := strings.ToLower(k)
+				if pair := key + "\x00" + p.Title; seen[pair] {
+					continue
+				} else {
+					seen[pair] = true
+				}
+				pagesFor[key] = append(pagesFor[key], subLink{Name: p.Title, URL: s.pageURL[p]})
+			}
+		}
+	}
+
+	var view keywordsView
+	keys := make([]string, 0, len(pagesFor))
+	for k := range pagesFor {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	ids := map[string]int{}
+	for _, k := range keys {
+		pages := pagesFor[k]
+		sort.Slice(pages, func(i, j int) bool { return pages[i].Name < pages[j].Name })
+
+		letter := strings.ToUpper(k[:1])
+		if letter < "A" || letter > "Z" {
+			letter = "#"
+		}
+		if n := len(view.Groups); n == 0 || view.Groups[n-1].Letter != letter {
+			id := letter
+			if letter == "#" {
+				id = "sym"
+			}
+			view.Groups = append(view.Groups, keywordGroup{Letter: letter, ID: id})
+		}
+		// Anchor per keyword, so a page's keyword can link into this index.
+		base := slug(k)
+		ids[base]++
+		if n := ids[base]; n > 1 {
+			base += "-" + strconv.Itoa(n)
+		}
+		g := &view.Groups[len(view.Groups)-1]
+		g.Entries = append(g.Entries, keywordEntry{Name: k, ID: base, Pages: pages})
+		view.Count++
+		view.Pairs += len(pages)
+	}
+	return view
+}
+
 // --- distributions ---------------------------------------------------------
 
 // The .TH source field names the distribution a page ships in, but at a finer
@@ -537,10 +602,13 @@ func defsLabel(defs []Entry) string {
 
 // commandLike reports whether a multi-word definition label is a command
 // invocation rather than prose. `.TP` doubles as this corpus's
-// paragraph-with-a-title macro, so section-like labels ("Atomic Parsing
-// Expressions", "Torn-off Menus") arrive looking exactly like "string cat".
-// They keep their anchor, their sidebar listing and their search entry; they
-// just have no business in an index of commands.
+// paragraph-with-a-title macro, so section-like labels arrive looking exactly
+// like "string cat" does: "Atomic Parsing Expressions" in the parser tools,
+// "Torn-off Menus" in menu(n), "Interpreters Passed As Arguments" in the C API.
+//
+// This decides the entry's kind, so nothing is dropped by it — the label keeps
+// its anchor, its place in the page's sidebar and its search entry. It just is
+// not called a subcommand, and so does not reach an index of commands.
 func commandLike(name string) bool {
 	if name == "" {
 		return false
@@ -591,6 +659,107 @@ func commonSubPrefix(subs []subLink) string {
 	return strings.Join(first[:n], " ") + " "
 }
 
+var (
+	creditRe = regexp.MustCompile(
+		`^Copyright ©\s*(\d{4}(?:\s*[-–]\s*\d{4})?(?:\s*,\s*\d{4}(?:\s*[-–]\s*\d{4})?)*)\s+(.+)$`)
+	yearRe     = regexp.MustCompile(`\d{4}`)
+	reservedRe = regexp.MustCompile(`(?i)[.,]?\s*all rights reserved\.?$`)
+)
+
+// groupCredits pools a manual's attributions by holder, coalescing the years
+// into a single span, which is the shape upstream's contents pages use.
+//
+// Pooled across a manual the verbatim list is mostly the same few names over
+// and over: Tcl Built-In Commands has 54 lines naming 22 holders, six of them
+// the Regents and seven of them Sun. Individual pages keep their lines exactly
+// as written — this only applies where the pooling is what makes them repeat.
+//
+// Anything that does not parse is carried through untouched rather than
+// dropped. "All rights reserved" is kept only where every one of a holder's
+// lines carries it: upstream discards it outright, but carrying it over from a
+// single line would assert it across a merged span that no source claims —
+// Donal K. Fellows wrote it once, in 2006, out of fourteen lines.
+func groupCredits(lines []string) []string {
+	type credit struct {
+		min, max int
+		lines    int
+		reserved bool
+	}
+	byHolder := map[string]*credit{}
+	var order, verbatim []string
+
+	for _, l := range lines {
+		m := creditRe.FindStringSubmatch(l)
+		if m == nil {
+			verbatim = append(verbatim, l)
+			continue
+		}
+		name := strings.TrimSpace(reservedRe.ReplaceAllString(m[2], ""))
+		reserved := name != strings.TrimSpace(m[2])
+		if name == "" {
+			verbatim = append(verbatim, l)
+			continue
+		}
+		c := byHolder[name]
+		if c == nil {
+			c = &credit{min: 1 << 30}
+			byHolder[name] = c
+			order = append(order, name)
+		}
+		if c.lines == 0 {
+			c.reserved = reserved
+		} else {
+			c.reserved = c.reserved && reserved
+		}
+		c.lines++
+		for _, y := range yearRe.FindAllString(m[1], -1) {
+			n, _ := strconv.Atoi(y)
+			if n < c.min {
+				c.min = n
+			}
+			if n > c.max {
+				c.max = n
+			}
+		}
+	}
+
+	sort.Slice(order, func(i, j int) bool {
+		a, b := byHolder[order[i]], byHolder[order[j]]
+		if a.min != b.min {
+			return a.min < b.min
+		}
+		return order[i] < order[j]
+	})
+
+	out := make([]string, 0, len(order)+len(verbatim))
+	for _, name := range order {
+		c := byHolder[name]
+		span := strconv.Itoa(c.min)
+		if c.max != c.min {
+			span += "-" + strconv.Itoa(c.max)
+		}
+		s := "Copyright © " + span + " " + name
+		if c.reserved {
+			s += ". All rights reserved"
+		}
+		out = append(out, s)
+	}
+	return append(out, verbatim...)
+}
+
+// dedupeStrings keeps the first occurrence of each value, order preserved.
+func dedupeStrings(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range in {
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 // plural formats a count with the right noun, so the site never says "1 pages".
 func plural(n int, one, many string) string {
 	if n == 1 {
@@ -627,6 +796,17 @@ func (s *site) write(outDir string) error {
 	}
 
 	ix := NewIndexer()
+
+	// Built before the pages, so each page's keywords can link into it, and
+	// because the masthead needs to know whether it exists.
+	kw := buildKeywords(s)
+	hasKeywords := len(kw.Groups) > 0
+	kwAnchor := map[string]string{}
+	for _, g := range kw.Groups {
+		for _, e := range g.Entries {
+			kwAnchor[e.Name] = e.ID
+		}
+	}
 
 	// Documentation pages.
 	for _, m := range s.Manuals {
@@ -676,6 +856,27 @@ func (s *site) write(outDir string) error {
 				also = append(also[:12:12], fmt.Sprintf("and %d more", len(also)-12))
 			}
 
+			var kwLinks []seeLink
+			for _, k := range p.Keywords {
+				if id := kwAnchor[strings.ToLower(k)]; id != "" {
+					kwLinks = append(kwLinks, seeLink{Name: k, URL: "keywords/#k-" + id})
+				} else {
+					kwLinks = append(kwLinks, seeLink{Name: k})
+				}
+			}
+
+			toc := buildTOC(p.Root)
+			// tcllib's pages, via doctools, already carry a COPYRIGHT section in
+			// the body. Printing the header attribution as well would say the
+			// same thing twice under two identical headings.
+			credits := dedupeStrings(p.Copyright)
+			for _, t := range toc {
+				if strings.EqualFold(t.Text, "Copyright") {
+					credits = nil
+					break
+				}
+			}
+
 			view := struct {
 				pageView
 				Title     string
@@ -684,16 +885,19 @@ func (s *site) write(outDir string) error {
 				AlsoNames []string
 			}{
 				pageView: pageView{
-					Page:      p,
-					Body:      template.HTML(markOptional(body.String())),
-					TOC:       buildTOC(p.Root),
-					Subcmds:   subs,
-					Options:   opts,
-					Defs:      defs,
-					DefsLabel: defsLabel(defs),
-					SeeAlso:   see,
-					Root:      "..",
-					HasDemos:  len(s.Demos) > 0,
+					Page:        p,
+					Body:        template.HTML(markOptional(body.String())),
+					TOC:         toc,
+					Copyright:   credits,
+					Subcmds:     subs,
+					Options:     opts,
+					Defs:        defs,
+					DefsLabel:   defsLabel(defs),
+					SeeAlso:     see,
+					Root:        "..",
+					HasDemos:    len(s.Demos) > 0,
+					HasKeywords: hasKeywords,
+					Keywords:    kwLinks,
 				},
 				Title:     p.Title + " \u2014 " + p.Manual,
 				ManualURL: m.Slug + "/",
@@ -742,9 +946,6 @@ func (s *site) write(outDir string) error {
 				if e.Kind != "subcommand" && e.Kind != "method" {
 					continue
 				}
-				if !commandLike(e.Name) {
-					continue
-				}
 				subs = append(subs, subLink{
 					Name: subLabel(e.Name, p.Names), URL: url + "#" + e.Anchor,
 				})
@@ -768,18 +969,41 @@ func (s *site) write(outDir string) error {
 		if len(m.Pages) == 1 && !strings.EqualFold(m.Pages[0].Summary, m.Name) {
 			summary = m.Pages[0].Summary
 		}
+		// Attribution, pooled across the manual the way upstream's contents
+		// pages do it: each page credits only its own authors, so the manual's
+		// full credit is the union of them.
+		var credits []string
+		for _, p := range m.Pages {
+			credits = append(credits, p.Copyright...)
+		}
+		credits = groupCredits(dedupeStrings(credits))
+
 		iv := indexView{
 			Title: m.Name, Manual: m.Name, Dist: m.Source, Summary: summary,
 			Groups: groupByLetter(entries), Root: "..", Count: len(entries),
-			HasDemos: len(s.Demos) > 0,
+			HasDemos: len(s.Demos) > 0, HasKeywords: hasKeywords, Copyright: credits,
 		}
 		if err := renderTo(tmpl, "index", filepath.Join(outDir, m.Slug, "index.html"), iv); err != nil {
 			return err
 		}
 	}
 
+	if hasKeywords {
+		kw.Title = "Keywords"
+		kw.Root = ".."
+		kw.HasDemos = len(s.Demos) > 0
+		kw.HasKeywords = true
+		if err := renderTo(tmpl, "keywords", filepath.Join(outDir, "keywords", "index.html"), kw); err != nil {
+			return err
+		}
+		fmt.Printf("keyword index: %d keywords, %d page references\n", kw.Count, kw.Pairs)
+	}
+
 	// Landing page.
-	home := homeView{Title: "Tcl/Tk reference", Root: ".", HasDemos: len(s.Demos) > 0}
+	home := homeView{
+		Title: "Tcl/Tk reference", Root: ".",
+		HasDemos: len(s.Demos) > 0, HasKeywords: hasKeywords,
+	}
 	for _, m := range s.Manuals {
 		n := 0
 		for _, p := range m.Pages {
@@ -821,7 +1045,7 @@ func (s *site) write(outDir string) error {
 	// Demonstration scripts, if any were given. They are not manual pages, so
 	// they get their own section rather than a place in the distribution list.
 	if len(s.Demos) > 0 {
-		dv := demosView{Title: "Tk demonstrations", Root: "..", HasDemos: true}
+		dv := demosView{Title: "Tk demonstrations", Root: "..", HasDemos: true, HasKeywords: hasKeywords}
 		for _, d := range s.Demos {
 			if d.Program {
 				dv.Programs = append(dv.Programs, d)
