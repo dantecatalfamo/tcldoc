@@ -216,6 +216,16 @@ kbd {
 .shell.wide { grid-template-columns: minmax(0, 1fr); }
 .shell.wide main { max-width: none; }
 
+/* Manual pages carry one rail. The shell keeps the full 84rem so that rail
+   starts where the masthead does; narrowing it to fit the content centred the
+   whole thing and left a wide gap down the left instead. main keeps its
+   measure, so the slack falls on the right, where the second rail used to be.
+
+   A page with neither an outline nor any definitions has no rail at all, and
+   gets the column back. */
+.shell.doc { grid-template-columns: 14rem minmax(0, 1fr); }
+.shell.doc.norail { grid-template-columns: minmax(0, 1fr); }
+
 .rail { font-size: 0.875rem; }
 .rail-sticky { position: sticky; top: 4.2rem; max-height: calc(100vh - 6rem); overflow-y: auto; }
 .rail h2 {
@@ -502,10 +512,12 @@ footer {
 /* ---- responsive -------------------------------------------------------- */
 
 @media (max-width: 60rem) {
-  .shell { grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+  /* .shell.doc and .shell.demo must be named: they outrank a bare .shell on
+     specificity, so listing only .shell here left their rails as a squeezed
+     14rem column instead of collapsing. */
+  .shell, .shell.doc, .shell.demo { grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
   .rail-sticky { position: static; max-height: none; }
-  .rail.toc { order: -1; }
-  .rail.toc ul { columns: 2; column-gap: 1.5rem; }
+  .rail ul { columns: 2; column-gap: 1.5rem; }
   .cmdlist { columns: 1; }
   .mastnav, .themelabel { display: none; }
 }
@@ -513,7 +525,7 @@ footer {
 @media (max-width: 34rem) {
   body { font-size: 15px; }
   h1 { font-size: 1.5rem; }
-  .rail.toc ul { columns: 1; }
+  .rail ul { columns: 1; }
   .masthead { flex-wrap: wrap; }
   /* Below this the masthead cannot hold the wordmark, a usable search box and
      the theme control at once: it wraps, and the search shrinks to a few

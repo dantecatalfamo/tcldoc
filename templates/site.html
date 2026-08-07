@@ -43,24 +43,32 @@
 {{end}}
 
 {{define "page"}}{{template "head" .}}
-<div class="shell">
-  <nav class="rail" aria-label="In this manual">
+{{/* One rail, not two: the page outline and the definitions it contains are
+     the same kind of information, and splitting them across both margins left
+     the reader looking in two places and the text squeezed between them. */}}
+{{$rail := or .TOC .Subcmds .Defs .Options}}
+<div class="shell doc{{if not $rail}} norail{{end}}">
+  {{if $rail}}
+  <nav class="rail" aria-label="On this page">
     <div class="rail-sticky">
-      <h2>Manual</h2>
+      {{if .TOC}}
+      <h2>On this page</h2>
       <ul>
-        <li><a href="{{.Root}}/{{.ManualURL}}" aria-current="page">{{.Page.Manual}}</a></li>
-        <li><a href="{{.Root}}/">All manuals</a></li>
-      </ul>
-      {{if .Subcmds}}
-      <h2>Subcommands</h2>
-      <ul>
-        {{range .Subcmds}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
+        {{range .TOC}}<li{{if .Sub}} class="sub"{{end}}><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}
       </ul>
       {{end}}
+      {{/* The commands a page defines come before the subcommands of any one
+           of them: the parent reads before its children. */}}
       {{if .Defs}}
       <h2>{{.DefsLabel}}</h2>
       <ul>
         {{range .Defs}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
+      </ul>
+      {{end}}
+      {{if .Subcmds}}
+      <h2>Subcommands</h2>
+      <ul>
+        {{range .Subcmds}}<li><a href="#{{.Anchor}}"><code>{{.Name}}</code></a></li>{{end}}
       </ul>
       {{end}}
       {{if .Options}}
@@ -71,6 +79,7 @@
       {{end}}
     </div>
   </nav>
+  {{end}}
 
   <main>
     <p class="crumbs"><a href="{{.Root}}/">Home</a> &rsaquo;
@@ -103,15 +112,6 @@
     <ul class="credits">{{range .Copyright}}<li>{{.}}</li>{{end}}</ul>
     {{end}}
   </main>
-
-  <nav class="rail toc" aria-label="On this page">
-    <div class="rail-sticky">
-      <h2>On this page</h2>
-      <ul>
-        {{range .TOC}}<li{{if .Sub}} class="sub"{{end}}><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}
-      </ul>
-    </div>
-  </nav>
 </div>
 {{template "foot" .}}{{end}}
 

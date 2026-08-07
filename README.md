@@ -53,9 +53,11 @@ because ensemble subcommands (`string cat`), object methods and widget options
 **Distributions.** `.TH`'s source field records which distribution a page ships
 in, and that is the only per-page record of provenance — the man directories
 sort by section, not by origin, so `mann/` holds Tcl, Tk, tcllib, itcl and the
-rest side by side. The landing page groups manuals into `Tcl and Tk`, `tcllib`
-and `Bundled packages`; an unrecognised source keeps its own name rather than
-being guessed into a family. Every page and manual index shows its distribution
+rest side by side. The landing page groups manuals into `Tcl and Tk`,
+`C API`, `Bundled packages` and `tcllib`; an unrecognised source keeps its own
+name rather than being guessed into a family. `C API` is judged on the man
+section rather than the source, since Tcl, Tk and TclOO each ship one and they
+are a different kind of reference from the command pages. Every page and manual index shows its distribution
 beside the breadcrumb. It is worth knowing that a Homebrew `tcl-tk` prefix
 bundles tcllib, so nine manuals in ten there are tcllib rather than core.
 

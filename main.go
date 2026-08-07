@@ -257,6 +257,19 @@ type site struct {
 	pageURL map[*Page]string
 }
 
+// manualOverride renames a manual whose .TH title is not a useful name for it.
+// Each override is guarded on the manual's contents, so a corpus where the same
+// title covers more than this is left alone.
+func manualOverride(m *manual) string {
+	// sqlite3's page carries a short .TH with no source field, so the generic
+	// "Tcl-Extensions" is read as its manual title. Where that page is the only
+	// one filed under it, the package it documents is the better name.
+	if m.Name == "Tcl-Extensions" && len(m.Pages) == 1 {
+		return m.Pages[0].Title
+	}
+	return m.Name
+}
+
 // normalizeManual folds the inconsistent .TH titles found upstream.
 func normalizeManual(m string) string {
 	m = strings.ReplaceAll(m, "Built-in", "Built-In")
@@ -283,6 +296,18 @@ func plan(pages []*Page) *site {
 		}
 		m.Pages = append(m.Pages, p)
 	}
+
+	// Rename where the .TH title is not a useful name for the manual. This runs
+	// after grouping because the overrides are guarded on what a manual turned
+	// out to contain.
+	for _, m := range s.Manuals {
+		if name := manualOverride(m); name != m.Name {
+			m.Name, m.Slug = name, slug(name)
+			for _, p := range m.Pages {
+				p.Manual = name // the breadcrumb reads from the page
+			}
+		}
+	}
 	sort.Slice(s.Manuals, func(i, j int) bool { return s.Manuals[i].Name < s.Manuals[j].Name })
 
 	// A manual claims a distribution only when its pages agree on one. Upstream
@@ -293,8 +318,10 @@ func plan(pages []*Page) *site {
 	// that and leave the manual itself unattributed; each page keeps its own.
 	for _, m := range s.Manuals {
 		fams := map[string]int{}
+		secs := map[string]int{}
 		src, mixed := "", false
 		for _, p := range m.Pages {
+			secs[p.Section]++
 			// A page with a short .TH carries no source at all. That is missing
 			// information, not disagreement, so it must not unattribute the
 			// whole manual -- one such page in Tcl Math Library would otherwise
@@ -327,6 +354,17 @@ func plan(pages []*Page) *site {
 		for _, f := range keys {
 			if fams[f] > fams[m.Family] {
 				m.Family = f
+			}
+		}
+
+		// Section 3 is the C API. Tcl, Tk and TclOO each ship one, and they are
+		// a different kind of reference from the command pages, so they group
+		// together rather than under the distribution they came from. Judged on
+		// the dominant section: Tk Themed Widget has eighteen section-3 pages
+		// among forty-one and is not a C API manual.
+		for sec, n := range secs {
+			if sec == "3" && n*2 > len(m.Pages) {
+				m.Family = "C API"
 			}
 		}
 	}
@@ -559,20 +597,23 @@ func distFamily(source string) string {
 	return source
 }
 
-// distRank orders the families: core first, then what ships alongside it, then
-// the standard library, then anything unrecognised, with the unattributed last.
+// distRank orders the families: the core commands first, then the C API, then
+// what ships alongside them, then the standard library, then anything
+// unrecognised, with the unattributed last.
 func distRank(family string) int {
 	switch family {
 	case "Tcl and Tk":
 		return 0
-	case "Bundled packages":
+	case "C API":
 		return 1
-	case "tcllib":
+	case "Bundled packages":
 		return 2
+	case "tcllib":
+		return 3
 	case "Unattributed":
-		return 4
+		return 5
 	}
-	return 3
+	return 4
 }
 
 // genericHeading are section titles that say nothing about what the section
