@@ -2,6 +2,9 @@
 <html lang="en" data-root="{{.Root}}">
 <head>
 <meta charset="utf-8">
+<!-- Inline and first, so a stored choice is applied before the first paint;
+     loading this with the rest of the JavaScript would flash the wrong theme. -->
+<script>try{var t=localStorage.getItem("tcldoc-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title>
 <link rel="stylesheet" href="{{.Root}}/style.css">
@@ -16,7 +19,16 @@
     <span class="hint"><kbd>/</kbd></span>
     <div class="results" role="listbox" aria-label="Search results"></div>
   </div>
-  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a></nav>
+  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a>{{if .HasDemos}}<a href="{{.Root}}/demos/">Demos</a>{{end}}</nav>
+  {{/* hidden until the script reveals it: with JavaScript off it would do nothing */}}
+  <div id="theme" class="themewrap" hidden>
+    <span class="themelabel">Theme</span>
+    <div class="theme" role="group" aria-label="Colour theme">
+      <button type="button" data-theme-set="auto">Auto</button><button
+              type="button" data-theme-set="light">Light</button><button
+              type="button" data-theme-set="dark">Dark</button>
+    </div>
+  </div>
 </header>
 {{end}}
 
@@ -104,11 +116,8 @@
     <p class="crumbs"><a href="{{.Root}}/">All manuals</a>{{with .Dist}}
       <span class="dist" title="Distribution this manual ships in">{{.}}</span>{{end}}</p>
     <h1>{{.Manual}}</h1>
-    <p class="lede">{{plural .Count "command" "commands"}}, with their ensemble
-    subcommands grouped underneath. Every link goes straight to its own
-    definition rather than to the top of a page. Options and the other per-page
-    definitions are listed on the page that defines them, and everything is
-    searchable from anywhere.</p>
+    {{with .Summary}}<p class="tagline">{{.}}</p>{{end}}
+    <p class="count">{{plural .Count "command" "commands"}}</p>
     <nav class="jump" aria-label="Jump to letter">
       {{range .Groups}}<a href="#l-{{.ID}}">{{.Letter}}</a>{{end}}
     </nav>
@@ -124,6 +133,69 @@
       {{end}}
     </ul>
     {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "demorail"}}
+  <nav class="rail" aria-label="Demonstrations">
+    <div class="rail-sticky">
+      {{if .Programs}}
+      <h2>Programs</h2>
+      <ul>{{range .Programs}}<li><a href="{{$.Root}}/{{.URL}}"><code>{{.Name}}</code></a></li>{{end}}</ul>
+      {{end}}
+      {{if .Packages}}
+      <h2>Packages</h2>
+      <ul>{{range .Packages}}<li><a href="{{$.Root}}/{{.URL}}"><code>{{.Name}}</code></a></li>{{end}}</ul>
+      {{end}}
+    </div>
+  </nav>
+{{end}}
+
+{{define "demos"}}{{template "head" .}}
+<div class="shell demo">
+  {{template "demorail" .}}
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">Home</a></p>
+    <h1>Tk demonstrations</h1>
+    <p class="lede">The demonstration scripts Tk ships in its
+    <code>demos</code> directory. The programs run under <code>wish</code>;
+    the packages are the procedure files they load.</p>
+
+    {{if .Programs}}
+    <h2 id="programs">Programs<a class="anchor" href="#programs" aria-label="Permalink">#</a></h2>
+    <ul class="cards">
+      {{range .Programs}}
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}</span>
+        <span class="mc">{{if .Desc}}{{.Desc}}{{else}}{{.Lines}} lines{{end}}</span></a></li>
+      {{end}}
+    </ul>
+    {{end}}
+
+    {{if .Packages}}
+    <h2 id="packages">Packages<a class="anchor" href="#packages" aria-label="Permalink">#</a></h2>
+    <ul class="manuals">
+      {{range .Packages}}
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}</span>
+        <span class="mc">{{.Lines}} lines</span></a></li>
+      {{end}}
+    </ul>
+    {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "demo"}}{{template "head" .}}
+<div class="shell demo">
+  {{template "demorail" .}}
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">Home</a> &rsaquo;
+      <a href="{{.Root}}/demos/">Tk demonstrations</a>
+      <span class="dist" title="Distribution this script ships in">Tk</span></p>
+    <h1>{{.Demo.Name}}</h1>
+    {{with .Demo.Desc}}<p class="tagline">{{.}}</p>{{end}}
+    <p class="crumbs">{{if .Demo.Program}}Runnable under <code>wish</code>{{else}}A procedure package loaded by the demo programs{{end}} &middot; {{plural .Demo.Lines "line" "lines"}}</p>
+    <pre class="source"><code>{{.Body}}</code></pre>
   </main>
 </div>
 {{template "foot" .}}{{end}}

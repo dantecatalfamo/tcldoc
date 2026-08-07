@@ -8,7 +8,14 @@
  * literal syntax (bold) from substitutable arguments (italic), and Tcl marks
  * optional groups with ?question marks?. All three get separate treatment. */
 
+/* Light is the base. Dark arrives either because the system asks for it or
+ * because the reader picked it, which is why the dark palette appears twice:
+ * a media query cannot be combined with an attribute selector in one rule, and
+ * light-dark() would leave older browsers with no colours at all. The two
+ * blocks are the same list and must stay in step. */
 :root {
+  color-scheme: light;
+
   --paper: #eceff1;
   --card: #f7f9fa;
   --ink: #1c2529;
@@ -27,8 +34,11 @@
   --gap: 1.5rem;
 }
 
+/* The system asked for dark, and the reader has not overridden it. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
     --paper: #161b1e;
     --card: #1e2529;
     --ink: #dde5e8;
@@ -40,6 +50,22 @@
     --substit: #c3a6e8;
     --optional: #7b878d;
   }
+}
+
+/* The reader chose dark. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #161b1e;
+  --card: #1e2529;
+  --ink: #dde5e8;
+  --muted: #8fa0a8;
+  --rule: #2f3a40;
+  --accent: #74b3e0;
+  --accent-soft: #223440;
+  --literal: #9fd0ee;
+  --substit: #c3a6e8;
+  --optional: #7b878d;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -111,9 +137,43 @@ kbd {
 
 /* The masthead carries one link, not a manual list: the corpus can run to
    hundreds of manuals, and they belong on the landing page. */
-.mastnav { flex: none; margin-left: auto; font-size: 0.85rem; white-space: nowrap; }
+.mastnav {
+  flex: none; margin-left: auto; display: flex; gap: 1rem;
+  font-size: 0.85rem; white-space: nowrap;
+}
 .mastnav a { color: var(--muted); text-decoration: none; }
 .mastnav a:hover { color: var(--ink); }
+
+/* The theme control sits at the end of the masthead. It stays hidden until the
+   script reveals it, so it never appears as a dead control. All three choices
+   are visible, which is what makes it self-explanatory. */
+.themewrap {
+  flex: none;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.themelabel {
+  font: 500 0.68rem/1 var(--sans);
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--muted);
+}
+.theme {
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.theme button {
+  padding: 0.22rem 0.5rem;
+  font: 500 0.72rem/1.6 var(--mono);
+  color: var(--muted);
+  background: var(--card);
+  border: 0;
+  border-left: 1px solid var(--rule);
+  cursor: pointer;
+}
+.theme button:first-child { border-left: 0; }
+.theme button:hover { color: var(--ink); }
+.theme button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); }
 
 /* ---- search results ---------------------------------------------------- */
 
@@ -331,6 +391,10 @@ li { margin: 0.25rem 0; }
 
 .lede { max-width: var(--measure); font-size: 1.05rem; color: var(--muted); margin: 0 0 2rem; }
 
+/* The entry count on a manual index. The manual's own summary, where it has
+   one, carries the description; this is just the size. */
+.count { font-size: 0.82rem; color: var(--muted); margin: 0 0 1.8rem; }
+
 .jump { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 2rem; }
 .jump a {
   min-width: 1.7rem; text-align: center; padding: 0.15rem 0.3rem;
@@ -427,6 +491,14 @@ footer {
   font-size: 0.8rem; color: var(--muted);
 }
 
+/* ---- demonstrations ----------------------------------------------------- */
+
+/* Demo pages carry one rail, not two, and their content is source code rather
+   than prose, so it gets the full remaining width instead of a reading measure. */
+.shell.demo { grid-template-columns: 14rem minmax(0, 1fr); }
+.shell.demo main { max-width: none; }
+.source { max-height: 80vh; overflow: auto; }
+
 /* ---- responsive -------------------------------------------------------- */
 
 @media (max-width: 60rem) {
@@ -435,7 +507,7 @@ footer {
   .rail.toc { order: -1; }
   .rail.toc ul { columns: 2; column-gap: 1.5rem; }
   .cmdlist { columns: 1; }
-  .mastnav { display: none; }
+  .mastnav, .themelabel { display: none; }
 }
 
 @media (max-width: 34rem) {
@@ -443,6 +515,11 @@ footer {
   h1 { font-size: 1.5rem; }
   .rail.toc ul { columns: 1; }
   .masthead { flex-wrap: wrap; }
+  /* Below this the masthead cannot hold the wordmark, a usable search box and
+     the theme control at once: it wraps, and the search shrinks to a few
+     characters. Search is what the masthead is for, so the theme control goes.
+     Nothing is lost that matters — the system preference still applies. */
+  .themewrap { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

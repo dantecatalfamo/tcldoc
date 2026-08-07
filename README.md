@@ -16,11 +16,22 @@ go build -o tcldoc .
 
 # Build and preview
 ./tcldoc -src ~/tcl-src -out ./site -serve :8080
+
+# Include Tk's demonstration scripts
+./tcldoc -src ~/tcl-src -demos ~/tcl-src/tk9.0.4/library/demos -out ./site
 ```
 
 `-src` is repeatable and accepts either a directory to walk or a single file.
 It recognises `.n`, `.1`, `.3` and the Homebrew-suffixed `.ntcl` / `.ntk`
 variants. Deploy the output directory to any static host.
+
+`-demos` is repeatable too, and points at a Tk demonstration directory —
+`library/demos` in a source tree, `lib/tk*/demos` in an installed prefix. Those
+are Tcl scripts rather than troff, so they never touch the manual-page parser:
+they get their own section, and their names and source join the search index.
+The per-script blurbs come from the directory's own `README`, which describes
+each runnable program. Images the demos load are not copied; the scripts are
+published to be read, not run from the browser.
 
 ## What it produces
 
@@ -59,6 +70,7 @@ searchable.
 
 ```
 main.go     discovery, planning, output, collision guard
+demos.go    Tk demonstration scripts: discovery, README blurbs
 parse.go    troff -> document tree; entry and anchor extraction
 inline.go   font state machine, escapes, macro argument splitting
 render.go   document tree -> HTML; A-Z index grouping

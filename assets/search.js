@@ -1,4 +1,4 @@
-/* tcldoc search — the only JavaScript on the site.
+/* tcldoc — the only JavaScript on the site: search, and the theme toggle.
  *
  * Two tiers. Names (every page, subcommand and option) load once and answer
  * prefix queries locally. Full-text queries fetch only the index shards for the
@@ -224,5 +224,56 @@
       inputs[0].focus();
       inputs[0].select();
     }
+  });
+})();
+
+/* Colour theme. The system's preference is the default and needs no JavaScript
+ * at all — the stylesheet honours prefers-color-scheme on its own. This only
+ * adds the override.
+ *
+ * All three choices are shown at once rather than cycled through one button:
+ * a control reading "Auto" tells you neither what it governs nor what else it
+ * could say. The <head> applies a stored choice before the first paint, so all
+ * this has to do is mark which one is current. */
+(function () {
+  'use strict';
+
+  var KEY = 'tcldoc-theme';
+  var root = document.documentElement;
+  var wrap = document.getElementById('theme');
+  if (!wrap) return;
+  var buttons = wrap.querySelectorAll('[data-theme-set]');
+
+  function stored() {
+    try {
+      var v = localStorage.getItem(KEY);
+      return v === 'light' || v === 'dark' ? v : 'auto';
+    } catch (e) {
+      return 'auto';
+    }
+  }
+
+  function apply(mode) {
+    if (mode === 'auto') {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', mode);
+    }
+    Array.prototype.forEach.call(buttons, function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-theme-set') === mode ? 'true' : 'false');
+    });
+    try {
+      if (mode === 'auto') localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, mode);
+    } catch (e) { /* private browsing: the choice just will not persist */ }
+  }
+
+  apply(stored());
+  wrap.hidden = false;
+
+  Array.prototype.forEach.call(buttons, function (b) {
+    b.addEventListener('click', function () {
+      apply(b.getAttribute('data-theme-set'));
+    });
   });
 })();

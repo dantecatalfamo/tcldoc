@@ -148,17 +148,20 @@ type pageView struct {
 	DefsLabel string
 	SeeAlso   []seeLink
 	Root      string
+	HasDemos  bool
 }
 
 type seeLink struct{ Name, URL string }
 
 type indexView struct {
-	Title  string
-	Manual string
-	Dist   string
-	Groups []indexGroup
-	Root   string
-	Count  int
+	Title    string
+	Manual   string
+	Dist     string
+	Summary  string // the manual's own description, where it has one
+	Groups   []indexGroup
+	Root     string
+	Count    int
+	HasDemos bool
 }
 
 // homeView is the landing page: a search box and a compact list of manuals.
@@ -172,6 +175,7 @@ type homeView struct {
 	Manuals  []manualCard // flat, for the totals
 	Pages    int
 	Entries  int
+	HasDemos bool
 }
 
 // manualSection is one distribution's worth of manuals on the landing page.
@@ -185,6 +189,22 @@ type manualSection struct {
 type manualCard struct {
 	Name, URL, Desc, Dist string
 	Entries               int
+}
+
+// demosView is the shared frame for the demonstration pages: both the index
+// and each script get the same rail listing every demo.
+type demosView struct {
+	Title    string
+	Root     string
+	HasDemos bool
+	Programs []*demo
+	Packages []*demo
+}
+
+type demoView struct {
+	demosView
+	Demo *demo
+	Body template.HTML
 }
 
 type indexGroup struct {

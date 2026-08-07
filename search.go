@@ -124,6 +124,38 @@ func (ix *Indexer) AddPage(p *Page, url string) {
 	}
 }
 
+// AddDemo registers a demonstration script. It is not a manual page, but it is
+// a thing on the site with a name, so it belongs in both tiers: without this,
+// searching for "rolodex" finds nothing.
+func (ix *Indexer) AddDemo(d *demo) {
+	id := len(ix.Docs)
+	kind := "package"
+	if d.Program {
+		kind = "program"
+	}
+	ix.Docs = append(ix.Docs, DocRec{
+		URL: d.URL, Title: d.Name, Manual: "Tk demonstrations", Summary: d.Desc,
+	})
+	ix.Names = append(ix.Names, NameRec{Name: d.Name, Doc: id, Kind: kind})
+
+	var sb strings.Builder
+	for i := 0; i < 4; i++ {
+		sb.WriteString(d.Name + " " + d.Desc + " ")
+	}
+	sb.WriteString(d.Source)
+	for _, tok := range tokenize(sb.String()) {
+		if len(tok) < 2 || stopwords[tok] {
+			continue
+		}
+		m := ix.postings[tok]
+		if m == nil {
+			m = map[int]int{}
+			ix.postings[tok] = m
+		}
+		m[id]++
+	}
+}
+
 func collectText(n *Node, sb *strings.Builder) {
 	if n.Tag != "" {
 		sb.WriteString(stripTags(n.Tag) + " ")

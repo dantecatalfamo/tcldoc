@@ -36,8 +36,9 @@ func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 func main() {
-	var srcs multiFlag
+	var srcs, demoDirs multiFlag
 	flag.Var(&srcs, "src", "source tree or man page directory (repeatable)")
+	flag.Var(&demoDirs, "demos", "Tk demonstration directory, e.g. <prefix>/lib/tk9.0/demos (repeatable)")
 	out := flag.String("out", "site", "output directory")
 	serve := flag.String("serve", "", "after building, serve on this address (e.g. :8080)")
 	quiet := flag.Bool("quiet", false, "suppress per-page warnings")
@@ -71,6 +72,15 @@ func main() {
 	}
 
 	site := plan(pages)
+
+	if len(demoDirs) > 0 {
+		site.Demos, err = discoverDemos(demoDirs)
+		if err != nil {
+			log.Fatalf("tcldoc: %v", err)
+		}
+		fmt.Printf("found %d demonstration scripts\n", len(site.Demos))
+	}
+
 	if err := site.write(*out); err != nil {
 		log.Fatalf("tcldoc: %v", err)
 	}
@@ -236,6 +246,7 @@ type manual struct {
 type site struct {
 	Pages   []*Page
 	Manuals []*manual
+	Demos   []*demo
 	urlFor  map[string]string // command name -> relative URL (with anchor)
 	pageURL map[*Page]string
 }
@@ -682,6 +693,7 @@ func (s *site) write(outDir string) error {
 					DefsLabel: defsLabel(defs),
 					SeeAlso:   see,
 					Root:      "..",
+					HasDemos:  len(s.Demos) > 0,
 				},
 				Title:     p.Title + " \u2014 " + p.Manual,
 				ManualURL: m.Slug + "/",
@@ -749,9 +761,17 @@ func (s *site) write(outDir string) error {
 				entries[primary].Subs = subs
 			}
 		}
+		// A manual that is really just one page is described by that page's own
+		// summary better than by anything generic. Multi-page manuals have no
+		// such line, and get none rather than boilerplate.
+		summary := ""
+		if len(m.Pages) == 1 && !strings.EqualFold(m.Pages[0].Summary, m.Name) {
+			summary = m.Pages[0].Summary
+		}
 		iv := indexView{
-			Title: m.Name, Manual: m.Name, Dist: m.Source,
+			Title: m.Name, Manual: m.Name, Dist: m.Source, Summary: summary,
 			Groups: groupByLetter(entries), Root: "..", Count: len(entries),
+			HasDemos: len(s.Demos) > 0,
 		}
 		if err := renderTo(tmpl, "index", filepath.Join(outDir, m.Slug, "index.html"), iv); err != nil {
 			return err
@@ -759,7 +779,7 @@ func (s *site) write(outDir string) error {
 	}
 
 	// Landing page.
-	home := homeView{Title: "Tcl/Tk reference", Root: "."}
+	home := homeView{Title: "Tcl/Tk reference", Root: ".", HasDemos: len(s.Demos) > 0}
 	for _, m := range s.Manuals {
 		n := 0
 		for _, p := range m.Pages {
@@ -797,6 +817,30 @@ func (s *site) write(outDir string) error {
 	})
 
 	home.Featured = pickFeatured(home.Manuals)
+
+	// Demonstration scripts, if any were given. They are not manual pages, so
+	// they get their own section rather than a place in the distribution list.
+	if len(s.Demos) > 0 {
+		dv := demosView{Title: "Tk demonstrations", Root: "..", HasDemos: true}
+		for _, d := range s.Demos {
+			if d.Program {
+				dv.Programs = append(dv.Programs, d)
+			} else {
+				dv.Packages = append(dv.Packages, d)
+			}
+		}
+		if err := renderTo(tmpl, "demos", filepath.Join(outDir, "demos", "index.html"), dv); err != nil {
+			return err
+		}
+		for _, d := range s.Demos {
+			view := demoView{demosView: dv, Demo: d, Body: template.HTML(escapeSource(d.Source))}
+			view.Title = d.Name + " — Tk demonstrations"
+			if err := renderTo(tmpl, "demo", filepath.Join(outDir, filepath.FromSlash(d.URL)), view); err != nil {
+				return err
+			}
+			ix.AddDemo(d)
+		}
+	}
 
 	if err := renderTo(tmpl, "home", filepath.Join(outDir, "index.html"), home); err != nil {
 		return err
