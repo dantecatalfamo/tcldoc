@@ -748,6 +748,20 @@ var genericHeading = map[string]bool{
 // which beats a generic label; where the enclosing section says nothing useful,
 // or the definitions are spread across several sections, fall back.
 func defsLabel(defs []Entry) string {
+	// C API prototypes come out of the synopsis, whose heading is generic; label
+	// them by what they are rather than the section they were found in.
+	if len(defs) > 0 {
+		allFuncs := true
+		for _, e := range defs {
+			if e.Kind != "function" {
+				allFuncs = false
+				break
+			}
+		}
+		if allFuncs {
+			return "Functions"
+		}
+	}
 	ctx := ""
 	for i, e := range defs {
 		if i > 0 && e.Context != ctx {

@@ -24,7 +24,14 @@ func renderNode(n *Node, sb *strings.Builder) {
 			`<a class="anchor" href="#` + n.ID + `" aria-label="Permalink">#</a></h3>` + "\n")
 		renderKids(n, sb)
 	case KPara:
-		sb.WriteString("<p>" + n.Text + "</p>\n")
+		if n.ID != "" {
+			// An anchored paragraph: a C API function prototype in the synopsis,
+			// given a permalink so the rail and index can link to it.
+			sb.WriteString(`<p id="` + n.ID + `">` + n.Text +
+				`<a class="anchor" href="#` + n.ID + `" aria-label="Permalink">#</a></p>` + "\n")
+		} else {
+			sb.WriteString("<p>" + n.Text + "</p>\n")
+		}
 	case KNote:
 		sb.WriteString(`<p class="note">` + n.Text + "</p>\n")
 	case KPre:

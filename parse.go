@@ -176,6 +176,20 @@ func titleize(s string) string {
 var firstCode = regexp.MustCompile(`(?s)^\s*((?:<code>.*?</code>[ \t]*)+)`)
 var tagStrip = regexp.MustCompile(`<[^>]+>`)
 
+// synopsisFunc matches a C API prototype's function name: a bold identifier
+// immediately followed by its parenthesised argument list, e.g. the
+// "Tcl_DStringInit" of "Tcl_DStringInit(dsPtr)". Any return type before it is
+// roman text and so not inside the <code> run.
+var synopsisFunc = regexp.MustCompile(`<code>([A-Za-z_][A-Za-z0-9_]*)</code>\(`)
+
+// protoName matches the function name of a plainly-typeset prototype: the last
+// identifier before the argument list, e.g. the "Ttk_CreateTheme" of
+// "Ttk_Theme Ttk_CreateTheme(interp, name)". A few section-3 pages -- the ttk C
+// API among them -- lay the synopsis out this way, without bolding the name, so
+// it never becomes a <code> run the paragraph path can see; there the whole
+// block stays one preformatted node instead.
+var protoName = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\(`)
+
 type parser struct {
 	page  *Page
 	stack []*Node
@@ -271,7 +285,23 @@ func (p *parser) endPara() {
 	if txt == "" {
 		return
 	}
-	p.top().add(&Node{Kind: KPara, Text: txt})
+	n := &Node{Kind: KPara, Text: txt}
+	// On a C API page each SYNOPSIS prototype -- a bold function name followed by
+	// its parenthesised arguments -- is its own paragraph. Anchor it and register
+	// it as an entry so the function reaches the page's rail and the manual index
+	// the way a command's subcommands do. The #include line is preformatted, not
+	// a paragraph, so it never reaches here.
+	if p.page.Section == "3" && strings.EqualFold(p.section, "SYNOPSIS") {
+		if m := synopsisFunc.FindStringSubmatch(txt); m != nil && !p.seen[m[1]] {
+			p.seen[m[1]] = true
+			id := p.uniqueID(anchorFor(m[1]))
+			n.ID = id
+			p.page.Entries = append(p.page.Entries, Entry{
+				Name: m[1], Anchor: id, Kind: "function", Context: p.section,
+			})
+		}
+	}
+	p.top().add(n)
 }
 
 func (p *parser) endPre() {
@@ -284,7 +314,34 @@ func (p *parser) endPre() {
 	if strings.TrimSpace(txt) == "" {
 		return
 	}
+	// A plainly-typeset C API synopsis keeps all its prototypes in one .nf block
+	// rather than one bolded paragraph each. Wrap each prototype line in an id
+	// span and register it, so these pages get the same rail and index entries
+	// the bolded synopses do. The #include line carries no "name(" and is left
+	// alone.
+	if p.page.Section == "3" && strings.EqualFold(p.section, "SYNOPSIS") {
+		txt = p.anchorSynopsisPre(txt)
+	}
 	p.top().add(&Node{Kind: KPre, Text: txt})
+}
+
+// anchorSynopsisPre wraps each prototype line of a preformatted section-3
+// synopsis in an id span and registers a function entry for it.
+func (p *parser) anchorSynopsisPre(txt string) string {
+	lines := strings.Split(txt, "\n")
+	for i, ln := range lines {
+		m := protoName.FindStringSubmatch(ln)
+		if m == nil || p.seen[m[1]] {
+			continue
+		}
+		p.seen[m[1]] = true
+		id := p.uniqueID(anchorFor(m[1]))
+		lines[i] = `<span id="` + id + `">` + ln + `</span>`
+		p.page.Entries = append(p.page.Entries, Entry{
+			Name: m[1], Anchor: id, Kind: "function", Context: p.section,
+		})
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (p *parser) flush() { p.endPara(); p.endPre() }
