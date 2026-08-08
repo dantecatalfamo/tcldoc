@@ -1162,7 +1162,7 @@ func (s *site) write(outDir string) error {
 			n += len(p.Names) + len(p.Entries)
 		}
 		home.Manuals = append(home.Manuals, manualCard{
-			Name: m.Name, URL: m.Slug + "/", Entries: n, Dist: m.Source,
+			Name: m.Name, URL: m.Slug + "/", Entries: n, Dist: m.Source, Family: m.Family,
 			Desc: plural(len(m.Pages), "page", "pages") + ", " + plural(n, "entry", "entries"),
 		})
 		home.Pages += len(m.Pages)
