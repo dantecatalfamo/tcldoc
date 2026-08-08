@@ -24,6 +24,13 @@ go build -o tcldoc .
 ./tcldoc -src ~/tcl-src -version "Tcl/Tk 9.0.4" -out ./site
 ```
 
+Don't have a source tree handy? `scripts/fetch-brew-corpus.sh [TAG]` pulls the
+Homebrew `tcl-tk` bottle straight from ghcr.io and builds the site from it. The
+bottle is a self-contained tree of plain (un-gzipped) troff with Tcl, Tk and
+tcllib together and the Tk demos alongside — the corpus this was developed
+against. The man pages are architecture-independent text, so the Linux bottle
+works on any host; no Homebrew, and no root, required.
+
 `-src` is repeatable and accepts either a directory to walk or a single file.
 It recognises `.n`, `.1` and `.3`, with or without the package suffix an
 installed tree adds — `.ntcl`, `.ntk`, `.3tcl`, `.3tk`, `.1tcl`, `.1tk`. Deploy the output directory to any static host.
