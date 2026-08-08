@@ -36,6 +36,7 @@ type DocRec struct {
 	Title   string `json:"t"`
 	Manual  string `json:"m"`
 	Summary string `json:"s"`
+	CAPI    bool   `json:"c,omitempty"`
 }
 
 type posting struct {
@@ -74,11 +75,13 @@ func tokenize(s string) []string {
 	return wordRe.FindAllString(strings.ToLower(s), -1)
 }
 
-// AddPage registers one page in both tiers.
-func (ix *Indexer) AddPage(p *Page, url string) {
+// AddPage registers one page in both tiers. capi marks a page as belonging to
+// the C API rather than the Tcl/Tk command set, so the client can flag it the
+// same way the Start here cards do.
+func (ix *Indexer) AddPage(p *Page, url string, capi bool) {
 	id := len(ix.Docs)
 	ix.Docs = append(ix.Docs, DocRec{
-		URL: url, Title: p.Title, Manual: p.Manual, Summary: p.Summary,
+		URL: url, Title: p.Title, Manual: p.Manual, Summary: p.Summary, CAPI: capi,
 	})
 
 	anchored := map[string]bool{}
