@@ -89,7 +89,7 @@
     <p class="crumbs"><a href="{{.Root}}/">Home</a> &rsaquo;
       <a href="{{.Root}}/{{.ManualURL}}">{{.Page.Manual}}</a>{{with .Dist}}
       <span class="dist" title="Distribution this page ships in">{{.}}</span>{{end}}</p>
-    <h1>{{.Page.Title}}</h1>
+    <h1>{{.Page.Title}}{{if .CAPI}} <span class="badge" title="C functions, not Tcl commands">C API</span>{{end}}</h1>
     {{with .Page.Summary}}<p class="tagline">{{.}}</p>{{end}}
     {{if .AlsoNames}}<p class="aka">Also documents {{range $i, $n := .AlsoNames}}{{if $i}}, {{end}}<code>{{$n}}</code>{{end}}</p>{{end}}
 
@@ -124,9 +124,9 @@
   <main>
     <p class="crumbs"><a href="{{.Root}}/">All manuals</a>{{with .Dist}}
       <span class="dist" title="Distribution this manual ships in">{{.}}</span>{{end}}</p>
-    <h1>{{.Manual}}</h1>
+    <h1>{{.Manual}}{{if .CAPI}} <span class="badge" title="C functions, not Tcl commands">C API</span>{{end}}</h1>
     {{with .Summary}}<p class="tagline">{{.}}</p>{{end}}
-    <p class="count">{{plural .Count "command" "commands"}}</p>
+    <p class="count">{{if .CAPI}}{{plural .Count "function" "functions"}}{{else}}{{plural .Count "command" "commands"}}{{end}}</p>
     <nav class="jump" aria-label="Jump to letter">
       {{range .Groups}}<a href="#l-{{.ID}}">{{.Letter}}</a>{{end}}
     </nav>
@@ -260,7 +260,7 @@
     <h2 id="start">Start here<a class="anchor" href="#start" aria-label="Permalink">#</a></h2>
     <ul class="cards">
       {{range .Featured}}
-      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}{{if eq .Family "C API"}} <span class="badge" title="C functions, not Tcl commands">C</span>{{end}}</span>
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}{{if eq .Family "C API"}} <span class="badge" title="C functions, not Tcl commands">C API</span>{{end}}</span>
         <span class="mc">{{.Desc}}{{with .Dist}} &middot; {{.}}{{end}}</span></a></li>
       {{end}}
     </ul>

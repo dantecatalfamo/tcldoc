@@ -160,6 +160,7 @@ type indexView struct {
 	Title       string
 	Manual      string
 	Dist        string
+	CAPI        bool // a C API manual, flagged so it isn't mistaken for commands
 	Summary     string // the manual's own description, where it has one
 	Groups      []indexGroup
 	Root        string

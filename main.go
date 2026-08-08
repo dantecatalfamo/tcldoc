@@ -1034,6 +1034,7 @@ func (s *site) write(outDir string) error {
 				Title     string
 				ManualURL string
 				Dist      string
+				CAPI      bool
 				AlsoNames []string
 			}{
 				pageView: pageView{
@@ -1054,6 +1055,7 @@ func (s *site) write(outDir string) error {
 				Title:     p.Title + " \u2014 " + p.Manual,
 				ManualURL: m.Slug + "/",
 				Dist:      p.Source,
+				CAPI:      m.Family == "C API",
 				AlsoNames: also,
 			}
 			if err := renderTo(tmpl, "page", filepath.Join(outDir, url), view); err != nil {
@@ -1131,7 +1133,7 @@ func (s *site) write(outDir string) error {
 		credits = groupCredits(dedupeStrings(credits))
 
 		iv := indexView{
-			Title: m.Name, Manual: m.Name, Dist: m.Source, Summary: summary,
+			Title: m.Name, Manual: m.Name, Dist: m.Source, CAPI: m.Family == "C API", Summary: summary,
 			Groups: groupByLetter(entries), Root: "..", Count: len(entries),
 			HasDemos: len(s.Demos) > 0, HasKeywords: hasKeywords, Copyright: credits,
 		}
