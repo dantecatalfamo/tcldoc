@@ -260,7 +260,7 @@
     <h2 id="start">Start here<a class="anchor" href="#start" aria-label="Permalink">#</a></h2>
     <ul class="cards">
       {{range .Featured}}
-      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}</span>
+      <li><a href="{{$.Root}}/{{.URL}}"><span class="mn">{{.Name}}{{if eq .Family "C API"}} <span class="badge" title="C functions, not Tcl commands">C</span>{{end}}</span>
         <span class="mc">{{.Desc}}{{with .Dist}} &middot; {{.}}{{end}}</span></a></li>
       {{end}}
     </ul>

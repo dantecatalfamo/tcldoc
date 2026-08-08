@@ -70,7 +70,8 @@
         u: doc.u + (rec.a ? '#' + rec.a : ''),
         d: rec.k ? doc.t : doc.s, // members show their page, pages show a summary
         k: rec.k,
-        s: score
+        s: score,
+        c: doc.c
       });
     }
     return hits;
@@ -111,7 +112,7 @@
       var hits = [];
       for (var id in acc || {}) {
         var doc = docs[id];
-        if (doc) hits.push({ n: doc.t, u: doc.u, d: doc.s, k: doc.m, s: acc[id] });
+        if (doc) hits.push({ n: doc.t, u: doc.u, d: doc.s, k: doc.m, s: acc[id], c: doc.c });
       }
       return hits;
     });
@@ -140,7 +141,9 @@
       var html = '<ol>';
       items.forEach(function (h, i) {
         html += '<li' + (i === sel ? ' data-sel=""' : '') + '><a href="' + ROOT + '/' + h.u + '">' +
-          '<span class="rn">' + esc(h.n) + '</span>' +
+          '<span class="rn">' + esc(h.n) +
+          (h.c ? ' <span class="badge" title="C function, not a Tcl command">C</span>' : '') +
+          '</span>' +
           (h.k ? '<span class="rk">' + esc(h.k) + '</span>' : '') +
           (h.d ? '<span class="rd">' + esc(h.d) + '</span>' : '') +
           '</a></li>';

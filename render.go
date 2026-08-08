@@ -193,8 +193,8 @@ type manualSection struct {
 }
 
 type manualCard struct {
-	Name, URL, Desc, Dist string
-	Entries               int
+	Name, URL, Desc, Dist, Family string
+	Entries                       int
 }
 
 // demosView is the shared frame for the demonstration pages: both the index

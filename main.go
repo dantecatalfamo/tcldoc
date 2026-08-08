@@ -1059,7 +1059,7 @@ func (s *site) write(outDir string) error {
 			if err := renderTo(tmpl, "page", filepath.Join(outDir, url), view); err != nil {
 				return err
 			}
-			ix.AddPage(p, url)
+			ix.AddPage(p, url, m.Family == "C API")
 		}
 
 		// Per-manual index, including subcommands and options.
@@ -1162,7 +1162,7 @@ func (s *site) write(outDir string) error {
 			n += len(p.Names) + len(p.Entries)
 		}
 		home.Manuals = append(home.Manuals, manualCard{
-			Name: m.Name, URL: m.Slug + "/", Entries: n, Dist: m.Source,
+			Name: m.Name, URL: m.Slug + "/", Entries: n, Dist: m.Source, Family: m.Family,
 			Desc: plural(len(m.Pages), "page", "pages") + ", " + plural(n, "entry", "entries"),
 		})
 		home.Pages += len(m.Pages)

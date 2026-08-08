@@ -487,6 +487,13 @@ li { margin: 0.25rem 0; }
 .cards a:hover { border-color: var(--accent); }
 .cards .mn { font: 600 0.95rem/1.35 var(--mono); color: var(--ink); }
 .cards .mc { display: block; font-size: 0.8rem; color: var(--muted); }
+/* Flags a card as the C API rather than Tcl/Tk commands, so a reader who
+   wants to script doesn't click into Tcl_CreateInterp by mistake. */
+.badge {
+  display: inline-block; font: 700 0.65rem/1.4 var(--sans); vertical-align: 0.1em;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0 0.3rem;
+}
 
 /* A flat multi-column list, not a stack of cards: at this length the cards
    were all weight and no information. */
