@@ -160,7 +160,7 @@ type indexView struct {
 	Title       string
 	Manual      string
 	Dist        string
-	CAPI        bool // a C API manual, flagged so it isn't mistaken for commands
+	CAPI        bool   // a C API manual, flagged so it isn't mistaken for commands
 	Summary     string // the manual's own description, where it has one
 	Groups      []indexGroup
 	Root        string
@@ -223,6 +223,7 @@ type indexGroup struct {
 
 type indexEntry struct {
 	Name, URL, Desc string
+	CAPI            bool      // a section-3 C API page, flagged even in a command manual
 	Subs            []subLink // subcommands, grouped under their command
 }
 

@@ -684,6 +684,22 @@ var (
 	}
 )
 
+// pageIsCAPI reports whether a page documents the C API. That is a per-page
+// property -- section 3 is the C library -- not a per-manual one: the Tk Themed
+// Widget manual files eighteen Ttk_* C functions in among the ttk widget
+// commands, so its family is not "C API" yet those pages still are. The badge
+// keys on this, while the manual's family (home-page grouping, index heading)
+// stays on the majority-section heuristic.
+func pageIsCAPI(p *Page) bool { return p.Section == "3" }
+
+// indexRowBadge reports whether a C API page's row in its manual's index should
+// carry the badge. On a pure C API group the index heading already reads "C API"
+// and every row is a function, so badging each row is noise; a mixed manual (Tk
+// Themed Widget files Ttk_* C functions among the ttk widget commands) has no
+// such heading cue, so there each C API row is flagged in place. The page itself
+// always carries the badge at its top -- see pageIsCAPI at the call site.
+func indexRowBadge(m *manual, p *Page) bool { return pageIsCAPI(p) && m.Family != "C API" }
+
 // distFamily buckets a .TH source field. An unrecognised source keeps its own
 // name rather than being guessed into a family, so a corpus carrying something
 // this does not know about (tklib, a vendor's own packages) still groups.
@@ -1055,13 +1071,13 @@ func (s *site) write(outDir string) error {
 				Title:     p.Title + " \u2014 " + p.Manual,
 				ManualURL: m.Slug + "/",
 				Dist:      p.Source,
-				CAPI:      m.Family == "C API",
+				CAPI:      pageIsCAPI(p),
 				AlsoNames: also,
 			}
 			if err := renderTo(tmpl, "page", filepath.Join(outDir, url), view); err != nil {
 				return err
 			}
-			ix.AddPage(p, url, m.Family == "C API")
+			ix.AddPage(p, url, pageIsCAPI(p))
 		}
 
 		// Per-manual index, including subcommands and options.
@@ -1087,7 +1103,7 @@ func (s *site) write(outDir string) error {
 				if a, ok := anchor[n]; ok {
 					u = url + "#" + a
 				}
-				entries = append(entries, indexEntry{Name: n, URL: u, Desc: p.Summary})
+				entries = append(entries, indexEntry{Name: n, URL: u, Desc: p.Summary, CAPI: indexRowBadge(m, p)})
 			}
 			// Subcommands and methods hang off the command they belong to
 			// instead of taking a row each: "string cat" becomes a link

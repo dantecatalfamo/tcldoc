@@ -142,7 +142,7 @@
       items.forEach(function (h, i) {
         html += '<li' + (i === sel ? ' data-sel=""' : '') + '><a href="' + ROOT + '/' + h.u + '">' +
           '<span class="rn">' + esc(h.n) +
-          (h.c ? ' <span class="badge" title="C function, not a Tcl command">C</span>' : '') +
+          (h.c ? ' <span class="badge" title="C functions, not Tcl commands">C API</span>' : '') +
           '</span>' +
           (h.k ? '<span class="rk">' + esc(h.k) + '</span>' : '') +
           (h.d ? '<span class="rd">' + esc(h.d) + '</span>' : '') +

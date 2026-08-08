@@ -134,7 +134,7 @@
     <h2 class="letter" id="l-{{.ID}}">{{.Letter}}</h2>
     <ul class="cmdlist">
       {{range .Entries}}
-      <li><a href="{{$.Root}}/{{.URL}}">{{.Name}}</a>
+      <li><a href="{{$.Root}}/{{.URL}}">{{.Name}}</a>{{if .CAPI}} <span class="badge" title="C functions, not Tcl commands">C API</span>{{end}}
         {{with .Desc}}<span class="d">{{.}}</span>{{end}}
         {{/* the space after each link is load-bearing: it is the only place the
              run of subcommands is allowed to wrap */}}
