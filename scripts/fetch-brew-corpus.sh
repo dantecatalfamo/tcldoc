@@ -144,8 +144,8 @@ fi
 echo "==> building site into ${OUT_DIR}"
 demos_arg=()
 [[ -n "$DEMOS" ]] && demos_arg=(-demos "$DEMOS")
-./tcldoc -src "$MAN" "${demos_arg[@]}" "${license_arg[@]}" -version "Tcl/Tk ${TAG}" -out "$OUT_DIR"
+./tcldoc -src "$MAN" "${demos_arg[@]}" "${license_arg[@]}" -version "Tcl/Tk ${TAG}" -out "$OUT_DIR" -xref
 
 echo
 echo "done. serve it with:"
-echo "  ./tcldoc -src \"$MAN\" ${DEMOS:+-demos \"$DEMOS\" }${license_arg:+-license \"tcllib=$LIC\" }-version \"Tcl/Tk ${TAG}\" -out \"$OUT_DIR\" -serve :8080"
+echo "  ./tcldoc -src \"$MAN\" ${DEMOS:+-demos \"$DEMOS\" }${license_arg:+-license \"tcllib=$LIC\" }-version \"Tcl/Tk ${TAG}\" -out \"$OUT_DIR\" -xref -serve :8080"
