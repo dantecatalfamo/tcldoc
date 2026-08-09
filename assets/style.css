@@ -91,6 +91,12 @@ a:hover { text-decoration-thickness: 2px; }
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: var(--gap);
   padding: 0.7rem 1.25rem;
+  /* The search box is the tallest thing in the bar, so the height would jump
+     when it is hidden (landing page) or pinned in on scroll. Reserve its height
+     -- padding (2 x 0.7) + the input's own box (0.9 padding + 1.4 x 0.95 line +
+     2px border), plus 1px for the line box rounding up -- so the bar stays put
+     whether or not the search is present. */
+  min-height: calc(3.63rem + 3px);
   background: var(--paper);
   border-bottom: 1px solid var(--rule);
 }
@@ -143,6 +149,13 @@ kbd {
 .hint { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .searchwrap input:focus ~ .hint,
 .searchwrap input:not(:placeholder-shown) ~ .hint { display: none; }
+
+/* On the landing page the hero search is the primary one, so the masthead's
+   copy is hidden above the fold to avoid two identical boxes at once. The
+   script pins it (see search.js) once the hero search scrolls out of view.
+   Where :has() is unsupported the rule is skipped and both simply show, as
+   before -- and search needs the script regardless. */
+body:has(.herosearch):not(.search-pinned) .masthead .searchwrap { display: none; }
 
 /* The masthead carries one link, not a manual list: the corpus can run to
    hundreds of manuals, and they belong on the landing page. */

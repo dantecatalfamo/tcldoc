@@ -219,13 +219,23 @@
 
   Array.prototype.forEach.call(inputs, attach);
 
-  // "/" focuses search from anywhere, the way every reference site should.
-  // The masthead box comes first in the document and is always on screen.
+  // "/" focuses search from anywhere, the way every reference site should. The
+  // masthead box comes first, but on the landing page it is hidden until the
+  // hero search scrolls away, so focus the first box that is actually rendered:
+  // the hero above the fold, the masthead once it is pinned. offsetParent is
+  // null exactly when an element (or an ancestor) is display:none.
+  function focusTarget() {
+    for (var i = 0; i < inputs.length; i++) {
+      if (inputs[i].offsetParent !== null) return inputs[i];
+    }
+    return inputs[0];
+  }
   document.addEventListener('keydown', function (e) {
     if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
       e.preventDefault();
-      inputs[0].focus();
-      inputs[0].select();
+      var target = focusTarget();
+      target.focus();
+      target.select();
     }
   });
 })();
@@ -279,4 +289,24 @@
       apply(b.getAttribute('data-theme-set'));
     });
   });
+})();
+
+/* Landing page only: the hero search is the primary one, so the masthead's
+ * copy would just duplicate it above the fold. The stylesheet hides the
+ * masthead search while the page is on the landing view; this reveals it (by
+ * pinning it) once the hero search has scrolled up behind the sticky header, so
+ * exactly one search box is on screen at a time. Search is scripted anyway, so
+ * nothing is lost when this does not run. */
+(function () {
+  'use strict';
+
+  var hero = document.querySelector('.herosearch');
+  if (!hero || !('IntersectionObserver' in window)) return;
+  var head = document.querySelector('.masthead');
+  var offset = head ? head.offsetHeight : 0;
+
+  new IntersectionObserver(function (entries) {
+    // Pin once the hero search is fully above the header's lower edge.
+    document.body.classList.toggle('search-pinned', !entries[0].isIntersecting);
+  }, { rootMargin: '-' + offset + 'px 0px 0px 0px', threshold: 0 }).observe(hero);
 })();
