@@ -36,6 +36,21 @@ func renderNode(n *Node, sb *strings.Builder) {
 		sb.WriteString(`<p class="note">` + n.Text + "</p>\n")
 	case KPre:
 		sb.WriteString("<pre><code>" + n.Text + "</code></pre>\n")
+	case KTable:
+		// A tab-separated display: one row per line, one cell per tab-stop, so the
+		// columns align regardless of how long each entry is.
+		sb.WriteString(`<table class="cols">` + "\n")
+		for _, line := range strings.Split(n.Text, "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			sb.WriteString("<tr>")
+			for _, cell := range strings.Split(line, "\t") {
+				sb.WriteString("<td>" + strings.TrimSpace(cell) + "</td>")
+			}
+			sb.WriteString("</tr>\n")
+		}
+		sb.WriteString("</table>\n")
 	case KStdOpts:
 		// Each cell is a standard option name documented elsewhere; linking them
 		// turns a dead-end list into navigation.

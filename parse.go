@@ -22,6 +22,7 @@ const (
 	KIndent
 	KNote
 	KStdOpts
+	KTable // a tab-separated display (.ta stops), rendered as aligned columns
 )
 
 type Node struct {
@@ -197,6 +198,7 @@ type parser struct {
 
 	para     *strings.Builder // open filled paragraph
 	pre      *strings.Builder // open verbatim block
+	preCode  bool             // the open block is .CS code, never a tab-column table
 	awaitTag *Node            // .TP/.AP/.OP item whose label is the next text line
 	section  string           // current .SH heading, plain text
 	capture  *[]string        // when set, text lines are metadata, not body
@@ -310,8 +312,19 @@ func (p *parser) endPre() {
 	}
 	txt := strings.Trim(p.pre.String(), "\n")
 	p.pre = nil
+	code := p.preCode
+	p.preCode = false
 	p.ins.reset()
 	if strings.TrimSpace(txt) == "" {
+		return
+	}
+	// A display with tabs separating content -- a widget's option list, a table of
+	// names -- is columns, not code, and a browser lays a <pre>'s tabs on an
+	// 8-column grid, leaving them ragged. Render it as a table instead. A leading
+	// tab is indentation, not a column break, so it does not count; an explicit
+	// .CS code block never becomes a table.
+	if !code && hasMidlineTab(txt) {
+		p.top().add(&Node{Kind: KTable, Text: txt})
 		return
 	}
 	// A plainly-typeset C API synopsis keeps all its prototypes in one .nf block
@@ -345,6 +358,18 @@ func (p *parser) anchorSynopsisPre(txt string) string {
 }
 
 func (p *parser) flush() { p.endPara(); p.endPre() }
+
+// hasMidlineTab reports whether any line has a tab with non-blank content before
+// it -- a column separator. A tab at the start of a line (after only blanks) is
+// indentation, not a column, so it does not count.
+func hasMidlineTab(s string) bool {
+	for _, line := range strings.Split(s, "\n") {
+		if i := strings.IndexByte(line, '\t'); i > 0 && strings.TrimSpace(line[:i]) != "" {
+			return true
+		}
+	}
+	return false
+}
 
 func (p *parser) addText(line string) {
 	if p.pre != nil {
@@ -658,6 +683,7 @@ func (p *parser) macro(name, rest string) {
 	case "nf", "DS":
 		p.flush()
 		p.pre = &strings.Builder{}
+		p.preCode = false
 
 	case "fi", "DE":
 		p.endPre()
@@ -665,6 +691,7 @@ func (p *parser) macro(name, rest string) {
 	case "CS":
 		p.flush()
 		p.pre = &strings.Builder{}
+		p.preCode = true
 
 	case "CE":
 		p.endPre()

@@ -477,6 +477,13 @@ li { margin: 0.25rem 0; }
 .hero h1 { font-size: 2.4rem; margin-bottom: 0.6rem; }
 .hero .lede { margin: 0 auto 1.8rem; }
 
+/* A tab-separated display (.ta) rendered as aligned columns -- typically a
+   multi-column list of option names -- rather than a <pre> whose tabs would
+   land ragged on the browser's 8-column grid. */
+table.cols { border-collapse: collapse; margin: 0.4rem 0 1.2rem; }
+table.cols td { padding: 0.12rem 2rem 0.12rem 0; vertical-align: top; white-space: nowrap; }
+table.cols td:last-child { padding-right: 0; }
+
 .herosearch { max-width: none; margin: 0 auto; }
 .herosearch input { padding: 0.7rem 1rem; font-size: 1.05rem; border-radius: 4px; }
 
