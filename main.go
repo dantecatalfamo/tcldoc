@@ -45,6 +45,8 @@ func main() {
 	version := flag.String("version", "", `version label for the site, e.g. "Tcl/Tk 9.0.3"`)
 	serve := flag.String("serve", "", "after building, serve on this address (e.g. :8080)")
 	quiet := flag.Bool("quiet", false, "suppress per-page warnings")
+	var licenses multiFlag
+	flag.Var(&licenses, "license", `license file to reproduce verbatim, "Name=path" or a bare path (repeatable); a license.terms near each -src is found automatically`)
 	flag.Parse()
 
 	if len(srcs) == 0 {
@@ -90,6 +92,12 @@ func main() {
 		}
 		fmt.Printf("found %d demonstration scripts\n", len(site.Demos))
 	}
+
+	site.Licenses = collectLicenses(srcs, licenses)
+	if len(site.Licenses) > 0 {
+		fmt.Printf("license: %d distinct license file(s)\n", len(site.Licenses))
+	}
+	site.Repos = collectRepos(pages)
 
 	if err := site.write(*out); err != nil {
 		log.Fatalf("tcldoc: %v", err)
@@ -155,6 +163,130 @@ func discover(roots []string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// --- licenses --------------------------------------------------------------
+
+// licenseDoc is one distribution's verbatim license text. The Tcl license --
+// which Tcl, Tk, the Tk demos and tcllib all ship -- grants the right to
+// distribute the documentation "provided that ... this notice is included
+// verbatim in any distributions". This site is such a distribution, so the
+// text is reproduced on a /license/ page.
+type licenseDoc struct {
+	Title string
+	ID    string // fragment-safe, unique within the page
+	Text  string
+}
+
+// collectLicenses gathers license files from the -license flags (explicit, and
+// their names win) and by discovery next to each -src, de-duplicated by content
+// so the single Tcl license the whole corpus shares is printed once.
+func collectLicenses(srcs, flags multiFlag) []licenseDoc {
+	seen := map[string]int{} // content key -> index in out
+	var out []licenseDoc
+	add := func(title, path string) {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		text := strings.TrimRight(string(b), "\n")
+		trimmed := strings.TrimSpace(text)
+		// Skip empties and critcl's "<<Undefined>>" placeholder stubs.
+		if len(trimmed) < 40 || strings.Contains(trimmed, "<<Undefined>>") {
+			return
+		}
+		key := fmt.Sprintf("%x", sha256.Sum256([]byte(trimmed)))
+		if i, ok := seen[key]; ok {
+			// Same text already collected. An explicit -license name supersedes a
+			// title derived from discovery.
+			if title != "" {
+				out[i].Title = title
+			}
+			return
+		}
+		if title == "" {
+			if strings.Contains(text, "The following terms apply to all files") {
+				title = "Tcl/Tk License"
+			} else {
+				title = "License terms"
+			}
+		}
+		id, base, n := slug(title), slug(title), 2
+		for {
+			clash := false
+			for _, e := range out {
+				if e.ID == id {
+					clash = true
+					break
+				}
+			}
+			if !clash {
+				break
+			}
+			id = base + "-" + strconv.Itoa(n)
+			n++
+		}
+		seen[key] = len(out)
+		out = append(out, licenseDoc{Title: title, ID: id, Text: text})
+	}
+
+	// Discovery first, so the core licenses next to -src lead the page; explicit
+	// -license entries follow (and their names win on any duplicate).
+	for _, root := range srcs {
+		for _, path := range licenseCandidates(root) {
+			add("", path)
+		}
+	}
+	for _, f := range flags {
+		name, path := "", f
+		if i := strings.IndexByte(f, '='); i >= 0 {
+			name, path = strings.TrimSpace(f[:i]), f[i+1:]
+		}
+		add(name, path)
+	}
+	return out
+}
+
+// licenseCandidates lists likely license.terms paths for one -src: the nearest
+// one at or above the source directory -- a Homebrew bottle keeps it at the
+// prefix, above share/man -- plus one under each immediate child directory, the
+// way a source tree keeps a license.terms under each of tcl*/ and tk*/.
+func licenseCandidates(root string) []string {
+	info, err := os.Stat(root)
+	if err != nil {
+		return nil
+	}
+	dir := root
+	if !info.IsDir() {
+		dir = filepath.Dir(root)
+	}
+	var cands []string
+	for d, i := dir, 0; i < 5; i++ {
+		p := filepath.Join(d, "license.terms")
+		if fileExists(p) {
+			cands = append(cands, p)
+			break
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+		d = parent
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if e.IsDir() {
+			if p := filepath.Join(dir, e.Name(), "license.terms"); fileExists(p) {
+				cands = append(cands, p)
+			}
+		}
+	}
+	return cands
+}
+
+func fileExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
 }
 
 func parseAll(files []string) ([]*Page, []string) {
@@ -336,12 +468,14 @@ type manual struct {
 }
 
 type site struct {
-	Version string // shown on every page; -version, since .TH cannot supply it
-	Pages   []*Page
-	Manuals []*manual
-	Demos   []*demo
-	urlFor  map[string]string // command name -> relative URL (with anchor)
-	pageURL map[*Page]string
+	Version  string // shown on every page; -version, since .TH cannot supply it
+	Pages    []*Page
+	Manuals  []*manual
+	Demos    []*demo
+	Licenses []licenseDoc      // verbatim license text(s), reproduced on /license/
+	Repos    []repo            // upstream repositories, linked from the footer
+	urlFor   map[string]string // command name -> relative URL (with anchor)
+	pageURL  map[*Page]string
 }
 
 // manualOverride renames a manual whose .TH title is not a useful name for it.
@@ -701,6 +835,50 @@ func pageIsCAPI(p *Page) bool { return p.Section == "3" }
 // always carries the badge at its top -- see pageIsCAPI at the call site.
 func indexRowBadge(m *manual, p *Page) bool { return pageIsCAPI(p) && m.Family != "C API" }
 
+// repoSources maps distributions to their upstream repository, in the order the
+// footer lists them. A source that ships inside a larger project points at that
+// project's repo, so many collapse together: TclOO, Zipfs, http, tcltest and the
+// other core libraries are all the Tcl repository. Match is case-insensitive.
+var repoSources = []struct {
+	Repo    repo
+	Sources []string
+}{
+	{repo{"Tcl", "https://core.tcl-lang.org/tcl/"}, []string{
+		"Tcl", "TclOO", "Zipfs", "Tcl-Extensions", "tcltest", "http", "msgcat",
+		"platform", "platform::shell", "dde", "registry", "cookiejar", "tcl_idna",
+	}},
+	{repo{"Tk", "https://core.tcl-lang.org/tk/"}, []string{"Tk"}},
+	{repo{"tcllib", "https://core.tcl-lang.org/tcllib/"}, []string{"tcllib"}},
+	{repo{"tklib", "https://core.tcl-lang.org/tklib/"}, []string{"tklib"}},
+	{repo{"incr Tcl", "https://core.tcl-lang.org/itcl/"}, []string{"itcl", "itk", "iwidgets"}},
+	{repo{"tdbc", "https://core.tcl-lang.org/tdbc/"}, []string{"tdbc"}},
+	{repo{"Thread", "https://core.tcl-lang.org/thread/"}, []string{"Thread", "Tcl Threading"}},
+	{repo{"SQLite", "https://sqlite.org/"}, []string{"sqlite3", "sqlite"}},
+}
+
+// collectRepos returns the upstream repositories for the distributions present
+// in the corpus, de-duplicated (bundled libraries collapse onto their parent's
+// repo) and in repoSources order. An unrecognised source contributes no link --
+// there is no repository to guess at -- rather than a wrong one.
+func collectRepos(pages []*Page) []repo {
+	present := map[string]bool{}
+	for _, p := range pages {
+		if p.Source != "" {
+			present[strings.ToLower(p.Source)] = true
+		}
+	}
+	var out []repo
+	for _, rs := range repoSources {
+		for _, s := range rs.Sources {
+			if present[strings.ToLower(s)] {
+				out = append(out, rs.Repo)
+				break
+			}
+		}
+	}
+	return out
+}
+
 // distFamily buckets a .TH source field. An unrecognised source keeps its own
 // name rather than being guessed into a family, so a corpus carrying something
 // this does not know about (tklib, a vendor's own packages) still groups.
@@ -952,9 +1130,11 @@ func (s *site) write(outDir string) error {
 	generated := time.Now().UTC().Format("2006-01-02 15:04 UTC")
 	tmpl, err := template.New("site").
 		Funcs(template.FuncMap{
-			"plural":    plural,
-			"version":   func() string { return s.Version },
-			"generated": func() string { return generated },
+			"plural":     plural,
+			"version":    func() string { return s.Version },
+			"generated":  func() string { return generated },
+			"hasLicense": func() bool { return len(s.Licenses) > 0 },
+			"repos":      func() []repo { return s.Repos },
 		}).
 		ParseFS(tmplFS, "templates/site.html")
 	if err != nil {
@@ -1185,6 +1365,17 @@ func (s *site) write(outDir string) error {
 			return err
 		}
 		fmt.Printf("keyword index: %d keywords, %d page references\n", kw.Count, kw.Pairs)
+	}
+
+	if len(s.Licenses) > 0 {
+		lv := licenseView{
+			Title: "License", Root: "..",
+			HasDemos: len(s.Demos) > 0, HasKeywords: hasKeywords,
+			Licenses: s.Licenses,
+		}
+		if err := renderTo(tmpl, "license", filepath.Join(outDir, "license", "index.html"), lv); err != nil {
+			return err
+		}
 	}
 
 	// Landing page.

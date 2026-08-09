@@ -163,6 +163,20 @@ type pageView struct {
 
 type seeLink struct{ Name, URL string }
 
+// repo is an upstream source repository, linked from the footer for every
+// distribution the corpus actually contains.
+type repo struct{ Name, URL string }
+
+// licenseView is the /license/ page: each distribution's license text, printed
+// verbatim to satisfy the Tcl license's "included verbatim in any distributions".
+type licenseView struct {
+	Title       string
+	Root        string
+	HasDemos    bool
+	HasKeywords bool
+	Licenses    []licenseDoc
+}
+
 type indexView struct {
 	Title       string
 	Manual      string

@@ -84,6 +84,58 @@ fi
 PREFIX="${MAN%/share/man}"
 DEMOS=$(find "${PREFIX}/lib" -type d -name demos 2>/dev/null | head -n1)
 
+# The Tcl/Tk license.terms sits at the prefix and tcldoc finds it on its own.
+# tcllib is bundled here too, but Homebrew ships only its .tcl modules (which say
+# "See the file license.terms"), not that file -- so there is nothing on disk to
+# discover. Supply it explicitly. It is the same BSD Tcl license, differing only
+# in the copyright holder, and is stable boilerplate, so it is embedded here
+# rather than fetched. Only added when tcllib is actually present.
+license_arg=()
+if compgen -G "${PREFIX}/lib/tcllib*" >/dev/null; then
+  LIC="${PREFIX}/tcllib-license.terms"
+  cat > "$LIC" <<'TCLLIB_LICENSE'
+This software is copyrighted by Ajuba Solutions and other parties.
+The following terms apply to all files associated with the software
+unless explicitly disclaimed in individual files.
+
+The authors hereby grant permission to use, copy, modify, distribute,
+and license this software and its documentation for any purpose,
+provided that existing copyright notices are retained in all copies
+and that this notice is included verbatim in any distributions. No
+written agreement, license, or royalty fee is required for any of the
+authorized uses.  Modifications to this software may be copyrighted by
+their authors and need not follow the licensing terms described here,
+provided that the new terms are clearly indicated on the first page of
+each file where they apply.
+
+IN NO EVENT SHALL THE AUTHORS OR DISTRIBUTORS BE LIABLE TO ANY PARTY
+FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ARISING OUT OF THE USE OF THIS SOFTWARE, ITS DOCUMENTATION, OR ANY
+DERIVATIVES THEREOF, EVEN IF THE AUTHORS HAVE BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+THE AUTHORS AND DISTRIBUTORS SPECIFICALLY DISCLAIM ANY WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NON-INFRINGEMENT.  THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, AND
+THE AUTHORS AND DISTRIBUTORS HAVE NO OBLIGATION TO PROVIDE
+MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
+GOVERNMENT USE: If you are acquiring this software on behalf of the
+U.S. government, the Government shall have only "Restricted Rights" in
+the software and related documentation as defined in the Federal
+Acquisition Regulations (FARs) in Clause 52.227.19 (c) (2).  If you
+are acquiring the software on behalf of the Department of Defense, the
+software shall be classified as "Commercial Computer Software" and the
+Government shall have only "Restricted Rights" as defined in Clause
+252.227-7013 (c) (1) of DFARs.  Notwithstanding the foregoing, the
+authors grant the U.S. Government and others acting in its behalf
+permission to use and distribute the software in accordance with the
+terms specified in this license.
+TCLLIB_LICENSE
+  license_arg=(-license "tcllib=${LIC}")
+fi
+
 if [[ ! -x ./tcldoc ]]; then
   echo "==> building tcldoc"
   go build -o tcldoc .
@@ -92,8 +144,8 @@ fi
 echo "==> building site into ${OUT_DIR}"
 demos_arg=()
 [[ -n "$DEMOS" ]] && demos_arg=(-demos "$DEMOS")
-./tcldoc -src "$MAN" "${demos_arg[@]}" -version "Tcl/Tk ${TAG}" -out "$OUT_DIR"
+./tcldoc -src "$MAN" "${demos_arg[@]}" "${license_arg[@]}" -version "Tcl/Tk ${TAG}" -out "$OUT_DIR"
 
 echo
 echo "done. serve it with:"
-echo "  ./tcldoc -src \"$MAN\" ${DEMOS:+-demos \"$DEMOS\" }-version \"Tcl/Tk ${TAG}\" -out \"$OUT_DIR\" -serve :8080"
+echo "  ./tcldoc -src \"$MAN\" ${DEMOS:+-demos \"$DEMOS\" }${license_arg:+-license \"tcllib=$LIC\" }-version \"Tcl/Tk ${TAG}\" -out \"$OUT_DIR\" -serve :8080"

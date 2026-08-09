@@ -480,6 +480,20 @@ li { margin: 0.25rem 0; }
 .herosearch { max-width: none; margin: 0 auto; }
 .herosearch input { padding: 0.7rem 1rem; font-size: 1.05rem; border-radius: 4px; }
 
+/* Verbatim license text: keep the file's own line breaks but wrap long lines so
+   it stays readable on narrow screens rather than forcing a horizontal scroll. */
+.license {
+  white-space: pre-wrap;
+  max-width: 46rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.1rem;
+  font: 400 0.85rem/1.5 var(--mono);
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
 .stat { margin: 0.9rem 0 0; font-size: 0.82rem; color: var(--muted); }
 
 /* The manual count beside each distribution heading. */

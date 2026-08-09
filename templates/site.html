@@ -40,11 +40,13 @@
 {{define "foot"}}
 <footer>
   <p>Generated from the {{with version}}{{.}} {{end}}manual page sources
-  on {{generated}}. Documentation is copyright its respective authors; see the
-  upstream distribution for terms.</p>
+  on {{generated}}. Documentation is copyright its respective authors{{if hasLicense}}
+  and distributed under these <a href="{{.Root}}/license/">license terms</a>{{else}};
+  see the upstream distribution for terms{{end}}.</p>
   <p>Built with <a href="https://github.com/dantecatalfamo/tcldoc">tcldoc</a>. An
   unofficial rendering of the Tcl/Tk manual pages &mdash; not affiliated with,
   endorsed by, or maintained by the Tcl Core Team or the Tcl/Tk project.</p>
+  {{with repos}}<p>Upstream source: {{range $i, $r := .}}{{if $i}}, {{end}}<a href="{{$r.URL}}">{{$r.Name}}</a>{{end}}.</p>{{end}}
 </footer>
 <script src="{{.Root}}/search.js" defer></script>
 </body>
@@ -174,6 +176,22 @@
         <span class="subs">{{range .Pages}}<a href="{{$.Root}}/{{.URL}}">{{.Name}}</a> {{end}}</span></li>
       {{end}}
     </ul>
+    {{end}}
+  </main>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "license"}}{{template "head" .}}
+<div class="shell wide">
+  <main>
+    <p class="crumbs"><a href="{{.Root}}/">All manuals</a></p>
+    <h1>License</h1>
+    <p class="tagline">The manual pages reproduced on this site are distributed
+    under the terms below, included here in full as those terms require. This is
+    an unofficial rendering; see the note in the footer.</p>
+    {{range .Licenses}}
+    <h2 id="{{.ID}}">{{.Title}}<a class="anchor" href="#{{.ID}}" aria-label="Permalink">#</a></h2>
+    <pre class="license">{{.Text}}</pre>
     {{end}}
   </main>
 </div>
