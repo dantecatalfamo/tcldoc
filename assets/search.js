@@ -191,6 +191,13 @@
 
     var timer;
     q.addEventListener('input', function () {
+      // Keep the other box (hero <-> masthead) in step, so a query typed before
+      // scrolling is still there when the box you were using scrolls away and
+      // its counterpart takes over. Assigning .value does not fire 'input', so
+      // this does not loop back.
+      for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i] !== q) inputs[i].value = q.value;
+      }
       clearTimeout(timer);
       timer = setTimeout(run, 90);
     });

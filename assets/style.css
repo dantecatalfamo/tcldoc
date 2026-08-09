@@ -88,7 +88,11 @@ a:hover { text-decoration-thickness: 2px; }
 /* ---- masthead ---------------------------------------------------------- */
 
 .masthead {
-  position: sticky; top: 0; z-index: 20;
+  /* Above the results dropdown (z-index 30): the hero search's results are
+     page-level, not inside this bar's stacking context, so a lower masthead
+     would let them slide over the sticky bar as the page scrolls. The masthead's
+     own dropdown lives inside this context and still sits above it regardless. */
+  position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; gap: var(--gap);
   padding: 0.7rem 1.25rem;
   /* The search box is the tallest thing in the bar, so the height would jump
