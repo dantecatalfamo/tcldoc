@@ -141,37 +141,3 @@ arguments (italic); Tcl marks optional groups with `?question marks?`. All three
 render as distinct, colour-coded elements (`<code>`, `<var>`, `.opt`) with a
 legend on every page. The official converter renders the first two as generic
 bold and italic and leaves the third as plain text.
-
-## Validation
-
-The generator is checked against the full corpus:
-
-- all 438 pages parse with no warnings
-- no unrendered troff escapes survive into the output
-- all 444 output pages are well-formed (no tag nesting errors)
-- all 27,676 internal links resolve, including every anchor
-- all 4,184 search entries point at an anchor that exists
-
-Two corpus quirks worth knowing about, both caught by that checking:
-
-- Seven Tk pages declare a multi-word `.TH` name (`.TH tk accessible n`), so
-  page identity comes from the source filename, not from `.TH`. A collision
-  guard warns rather than silently overwriting if two pages ever collide.
-- `options.n` documents option aliases inline (`.OP "\-background or \-bg"`).
-  Both spellings are indexed and both resolve to the same anchor.
-- An *installed* manual tree writes one complete copy of a multi-name page per
-  name on its NAME line, so `library.n` arrives nineteen times over — as
-  `auto_execok.n`, `parray.n`, `writeFile.n` and so on. Copies are recognised by
-  content and collapsed onto the one whose filename matches its `.TH` name.
-  Without that, every copy is a page in its own right and contributes all
-  eighteen of its names to the manual index, which listed `writeFile` 38 times.
-
-## Known limitations
-
-- Cross-references inside prose are not auto-linked; only `SEE ALSO` and
-  standard-option lists become links. Auto-linking every mention of a command
-  name is doable but produces noisy false positives in code examples.
-- `.ta` tab stops are ignored, so a few wide tabular displays inside `.nf`
-  blocks are less tidy than groff would render them.
-- Bundled packages (itcl, tdbc, sqlite, thread) are only included if their
-  `pkgs/` directories are present in the source tree you point at.
