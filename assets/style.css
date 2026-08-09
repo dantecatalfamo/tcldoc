@@ -81,6 +81,9 @@ body {
 }
 
 a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+/* Prototype auto cross-references in prose: a dotted underline sets them apart
+   from the explicit links in SEE ALSO and option lists. */
+a.xref { text-decoration-style: dotted; }
 a:hover { text-decoration-thickness: 2px; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

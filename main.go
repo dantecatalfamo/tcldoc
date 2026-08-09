@@ -47,6 +47,7 @@ func main() {
 	quiet := flag.Bool("quiet", false, "suppress per-page warnings")
 	var licenses multiFlag
 	flag.Var(&licenses, "license", `license file to reproduce verbatim, "Name=path" or a bare path (repeatable); a license.terms near each -src is found automatically`)
+	xref := flag.Bool("xref", false, "prototype: auto-link emboldened command names in prose")
 	flag.Parse()
 
 	if len(srcs) == 0 {
@@ -98,6 +99,7 @@ func main() {
 		fmt.Printf("license: %d distinct license file(s)\n", len(site.Licenses))
 	}
 	site.Repos = collectRepos(pages)
+	site.Xref = *xref
 
 	if err := site.write(*out); err != nil {
 		log.Fatalf("tcldoc: %v", err)
@@ -468,14 +470,16 @@ type manual struct {
 }
 
 type site struct {
-	Version  string // shown on every page; -version, since .TH cannot supply it
-	Pages    []*Page
-	Manuals  []*manual
-	Demos    []*demo
-	Licenses []licenseDoc      // verbatim license text(s), reproduced on /license/
-	Repos    []repo            // upstream repositories, linked from the footer
-	urlFor   map[string]string // command name -> relative URL (with anchor)
-	pageURL  map[*Page]string
+	Version     string // shown on every page; -version, since .TH cannot supply it
+	Pages       []*Page
+	Manuals     []*manual
+	Demos       []*demo
+	Licenses    []licenseDoc      // verbatim license text(s), reproduced on /license/
+	Repos       []repo            // upstream repositories, linked from the footer
+	Xref        bool              // prototype: auto-link command names in prose
+	urlFor      map[string]string // command name -> relative URL (with anchor)
+	linkTargets map[string]string // page name -> page URL, only when unambiguous
+	pageURL     map[*Page]string
 }
 
 // manualOverride renames a manual whose .TH title is not a useful name for it.
@@ -624,6 +628,33 @@ func plan(pages []*Page) *site {
 			}
 		}
 	}
+	// linkTargets underpins -xref: a page-level name is a safe link target only
+	// when exactly one page carries it. "interp" names both the core command and
+	// the tcllib package, so it is dropped rather than linked to whichever page
+	// happened to register it first.
+	counts := map[string]int{}
+	pageNameURL := map[string]string{}
+	for _, p := range pages {
+		u := s.pageURL[p]
+		seen := map[string]bool{}
+		for _, n := range p.Names {
+			if seen[n] {
+				continue
+			}
+			seen[n] = true
+			counts[n]++
+			if _, ok := pageNameURL[n]; !ok {
+				pageNameURL[n] = u
+			}
+		}
+	}
+	s.linkTargets = map[string]string{}
+	for n, c := range counts {
+		if c == 1 {
+			s.linkTargets[n] = pageNameURL[n]
+		}
+	}
+
 	s.Pages = pages
 	return s
 }
@@ -663,6 +694,76 @@ func markOptional(h string) string {
 		}
 	}
 	return b.String()
+}
+
+// xrefCode matches a bold inline run -- the form an emboldened command name
+// takes in the body. Its text carries no nested tags.
+var xrefCode = regexp.MustCompile(`<code>([^<]+)</code>`)
+
+// xrefName accepts only single-token, command-shaped names, so a multi-word
+// definition label or an emboldened literal like "0" or "{}" is never a
+// candidate. Namespaced names such as oo::class are allowed.
+var xrefName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z0-9_]+)*$`)
+
+// crossReference links emboldened command names in a page's prose to the page
+// that documents them (prototype, off unless -xref). It is deliberately
+// conservative: it links a <code> run only when its text is a page name that
+// exactly one page owns (see linkTargets) and is not the page itself, and it
+// never touches text inside a code block, an existing link, or a definition
+// label. selfURL and the map values are root-relative; body links sit one
+// directory down, hence the "../".
+func crossReference(body, selfURL string, targets map[string]string) (string, int) {
+	guarded := guardedRanges(body)
+	inGuarded := func(pos int) bool {
+		for _, r := range guarded {
+			if pos >= r[0] && pos < r[1] {
+				return true
+			}
+		}
+		return false
+	}
+	var out strings.Builder
+	last, n := 0, 0
+	for _, m := range xrefCode.FindAllStringSubmatchIndex(body, -1) {
+		start, end, ns, ne := m[0], m[1], m[2], m[3]
+		name := body[ns:ne]
+		u, ok := targets[name]
+		if !ok || u == selfURL || !xrefName.MatchString(name) {
+			continue
+		}
+		if inGuarded(start) {
+			continue
+		}
+		out.WriteString(body[last:start])
+		out.WriteString(`<a class="xref" href="../` + u + `">` + body[start:end] + `</a>`)
+		last, n = end, n+1
+	}
+	out.WriteString(body[last:])
+	return out.String(), n
+}
+
+// guardedRanges are byte spans cross-referencing must not touch: code blocks,
+// existing links, and definition labels.
+func guardedRanges(body string) [][2]int {
+	var out [][2]int
+	for _, se := range [][2]string{{"<pre", "</pre>"}, {"<a", "</a>"}, {"<dt", "</dt>"}} {
+		open, clo := se[0], se[1]
+		for i := 0; ; {
+			s := strings.Index(body[i:], open)
+			if s < 0 {
+				break
+			}
+			s += i
+			e := strings.Index(body[s:], clo)
+			if e < 0 {
+				break
+			}
+			e = s + e + len(clo)
+			out = append(out, [2]int{s, e})
+			i = e
+		}
+	}
+	return out
 }
 
 // --- the featured manuals --------------------------------------------------
@@ -1175,11 +1276,18 @@ func (s *site) write(outDir string) error {
 	ix.AddKeywords(kw, "keywords/index.html")
 
 	// Documentation pages.
+	xrefCount := 0
 	for _, m := range s.Manuals {
 		for _, p := range m.Pages {
 			url := s.pageURL[p]
 			var body strings.Builder
 			renderKids(p.Root, &body)
+			bodyHTML := body.String()
+			if s.Xref {
+				var nx int
+				bodyHTML, nx = crossReference(bodyHTML, url, s.linkTargets)
+				xrefCount += nx
+			}
 
 			// Every anchored definition belongs in the sidebar, including the
 			// ones that fall into the generic bucket: thread(n) and tclvars(n)
@@ -1253,7 +1361,7 @@ func (s *site) write(outDir string) error {
 			}{
 				pageView: pageView{
 					Page:        p,
-					Body:        template.HTML(markOptional(body.String())),
+					Body:        template.HTML(markOptional(bodyHTML)),
 					TOC:         toc,
 					Copyright:   credits,
 					Subcmds:     subs,
@@ -1454,6 +1562,9 @@ func (s *site) write(outDir string) error {
 		return err
 	}
 	fmt.Printf("wrote %d pages across %d manuals\n", len(s.Pages), len(s.Manuals))
+	if s.Xref {
+		fmt.Printf("cross-references: %d prose links added\n", xrefCount)
+	}
 	fmt.Printf("search index: %d names, %d docs, %d terms in %d shards\n",
 		stats["names"], stats["docs"], stats["terms"], stats["shards"])
 	return nil
