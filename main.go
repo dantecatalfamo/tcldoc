@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 //go:embed templates/site.html
@@ -944,13 +945,16 @@ func plural(n int, one, many string) string {
 }
 
 func (s *site) write(outDir string) error {
-	// version is a function rather than a field on every view: it is one string
-	// for the whole build, and threading it through five view types to reach a
-	// template that every page shares would be five fields of ceremony.
+	// version and generated are functions rather than fields on every view: each
+	// is one string for the whole build, and threading them through five view
+	// types to reach a template that every page shares would be pure ceremony.
+	// The timestamp is captured once so every page in a build agrees on it.
+	generated := time.Now().UTC().Format("2006-01-02 15:04 UTC")
 	tmpl, err := template.New("site").
 		Funcs(template.FuncMap{
-			"plural":  plural,
-			"version": func() string { return s.Version },
+			"plural":    plural,
+			"version":   func() string { return s.Version },
+			"generated": func() string { return generated },
 		}).
 		ParseFS(tmplFS, "templates/site.html")
 	if err != nil {

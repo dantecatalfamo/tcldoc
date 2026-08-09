@@ -6,7 +6,9 @@
      loading this with the rest of the JavaScript would flash the wrong theme. -->
 <script>try{var t=localStorage.getItem("tcldoc-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}}</title>
+<title>{{.Title}} &middot; tcldoc</title>
+<link rel="icon" href="{{.Root}}/favicon.ico" sizes="32x32">
+<link rel="icon" href="{{.Root}}/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{{.Root}}/style.css">
 </head>
 <body>
@@ -37,9 +39,10 @@
 
 {{define "foot"}}
 <footer>
-  <p>Generated from the {{with version}}{{.}} {{end}}manual page sources.
-  Documentation is copyright its respective authors; see the upstream
-  distribution for terms.</p>
+  <p>Generated from the {{with version}}{{.}} {{end}}manual page sources
+  on {{generated}}. Documentation is copyright its respective authors; see the
+  upstream distribution for terms.</p>
+  <p>Built with <a href="https://github.com/dantecatalfamo/tcldoc">tcldoc</a>.</p>
 </footer>
 <script src="{{.Root}}/search.js" defer></script>
 </body>
