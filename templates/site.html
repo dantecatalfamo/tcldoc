@@ -24,7 +24,7 @@
     <span class="hint"><kbd>/</kbd></span>
     <div class="results" role="listbox" aria-label="Search results"></div>
   </div>
-  <nav class="mastnav"><a href="{{.Root}}/">All manuals</a>{{if .HasKeywords}}<a href="{{.Root}}/keywords/">Keywords</a>{{end}}{{if .HasDemos}}<a href="{{.Root}}/demos/">Demos</a>{{end}}</nav>
+  <nav class="mastnav"><a class="nav-home" href="{{.Root}}/">All manuals</a>{{if .HasKeywords}}<a href="{{.Root}}/keywords/">Keywords</a>{{end}}{{if .HasDemos}}<a href="{{.Root}}/demos/">Demos</a>{{end}}</nav>
   {{/* hidden until the script reveals it: with JavaScript off it would do nothing */}}
   <div id="theme" class="themewrap" hidden>
     <span class="themelabel">Theme</span>

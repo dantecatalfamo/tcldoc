@@ -539,19 +539,26 @@ footer {
   .rail-sticky { position: static; max-height: none; }
   .rail ul { columns: 2; column-gap: 1.5rem; }
   .cmdlist { columns: 1; }
-  .mastnav, .themelabel { display: none; }
+  /* Narrow enough that the theme control crowds the search box: drop it -- the
+     system preference still themes the site -- and keep the discovery links in
+     its place, minus "All manuals", which the wordmark already provides. */
+  .themewrap { display: none; }
+  .mastnav .nav-home { display: none; }
 }
 
 @media (max-width: 34rem) {
   body { font-size: 15px; }
   h1 { font-size: 1.5rem; }
   .rail ul { columns: 1; }
+  /* Now too narrow for even brand + search + nav on one row, so wrap into two:
+     the brand and the discovery links (their margin-left:auto sends them to the
+     far end) share the top row, and the search box takes a row of its own. A
+     full-width basis on the search forces it onto the second row; the order
+     shift keeps the nav ahead of it so the two flex-none items pack onto the
+     first. The nav and the hidden theme control carry over from the wider rule
+     above. */
   .masthead { flex-wrap: wrap; }
-  /* Below this the masthead cannot hold the wordmark, a usable search box and
-     the theme control at once: it wraps, and the search shrinks to a few
-     characters. Search is what the masthead is for, so the theme control goes.
-     Nothing is lost that matters — the system preference still applies. */
-  .themewrap { display: none; }
+  .searchwrap { order: 3; flex-basis: 100%; max-width: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
