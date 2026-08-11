@@ -177,6 +177,13 @@ func titleize(s string) string {
 var firstCode = regexp.MustCompile(`(?s)^\s*((?:<code>.*?</code>[ \t]*)+)`)
 var tagStrip = regexp.MustCompile(`<[^>]+>`)
 
+// methodLabel captures the callable of a widget or object method, whose label
+// names its receiver first, in italics: "\fIpathName \fBaddtag\fR ..." sets the
+// bold run after a single italic placeholder (pathName, interp, $obj) as the
+// method. Without this the 800-odd Tk widget subcommands are never extracted,
+// because the label does not start with the bold run firstCode looks for.
+var methodLabel = regexp.MustCompile(`(?s)^\s*<var>\$?[A-Za-z][A-Za-z0-9_]*\s*</var>\s*((?:<code>.*?</code>[ \t]*)+)`)
+
 // synopsisFunc matches a C API prototype's function name: a bold identifier
 // immediately followed by its parenthesised argument list, e.g. the
 // "Tcl_DStringInit" of "Tcl_DStringInit(dsPtr)". Any return type before it is
@@ -447,9 +454,16 @@ func isAlnum(r rune) bool {
 // The leading bold run of a .TP label is the callable signature, e.g.
 // "\fBstring cat\fR ?\fIstring\fR ...?" yields "string cat".
 func (p *parser) registerEntry(n *Node) {
+	method := false
 	m := firstCode.FindStringSubmatch(n.Tag)
 	if m == nil {
-		return
+		// Not bold-first: try a method label, whose receiver placeholder is set
+		// in italics ahead of the callable.
+		m = methodLabel.FindStringSubmatch(n.Tag)
+		if m == nil {
+			return
+		}
+		method = true
 	}
 	lead := strings.ReplaceAll(tagStrip.ReplaceAllString(m[1], ""), "&numsp;", " ")
 	// Unescape: the label is inline HTML, but an entry name is plain text and
@@ -465,6 +479,8 @@ func (p *parser) registerEntry(n *Node) {
 	switch {
 	case n.Kind == KOption || strings.HasPrefix(lead, "-"):
 		kind = "option"
+	case method:
+		kind = "method"
 	case strings.Contains(p.section, "OPTION"):
 		kind = "option"
 	case strings.Contains(lead, " ") && commandLike(lead) && p.page.Section != "3":
