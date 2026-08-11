@@ -196,17 +196,17 @@ type parser struct {
 	stack []*Node
 	ins   *inlineState
 
-	para     *strings.Builder // open filled paragraph
-	pre      *strings.Builder // open verbatim block
-	preCode  bool             // the open block is .CS code, never a tab-column table
-	awaitTag *Node            // .TP/.AP/.OP item whose label is the next text line
-	section  string           // current .SH heading, plain text
-	capture  *[]string        // when set, text lines are metadata, not body
-	nameLn   []string
-	kwLn     []string
-	saLn     []string
-	seen     map[string]bool
-	ids      map[string]int
+	para       *strings.Builder // open filled paragraph
+	pre        *strings.Builder // open verbatim block
+	preNoTable bool             // open block (.CS code, .SO options) must not become a tab table
+	awaitTag   *Node            // .TP/.AP/.OP item whose label is the next text line
+	section    string           // current .SH heading, plain text
+	capture    *[]string        // when set, text lines are metadata, not body
+	nameLn     []string
+	kwLn       []string
+	saLn       []string
+	seen       map[string]bool
+	ids        map[string]int
 }
 
 func newParser() *parser {
@@ -312,18 +312,18 @@ func (p *parser) endPre() {
 	}
 	txt := strings.Trim(p.pre.String(), "\n")
 	p.pre = nil
-	code := p.preCode
-	p.preCode = false
+	noTable := p.preNoTable
+	p.preNoTable = false
 	p.ins.reset()
 	if strings.TrimSpace(txt) == "" {
 		return
 	}
-	// A display with tabs separating content -- a widget's option list, a table of
-	// names -- is columns, not code, and a browser lays a <pre>'s tabs on an
+	// A display with tabs separating content -- a table of names, a widget's item
+	// options -- is columns, not code, and a browser lays a <pre>'s tabs on an
 	// 8-column grid, leaving them ragged. Render it as a table instead. A leading
-	// tab is indentation, not a column break, so it does not count; an explicit
-	// .CS code block never becomes a table.
-	if !code && hasMidlineTab(txt) {
+	// tab is indentation, not a column break, so it does not count; .CS code and
+	// .SO standard-option blocks (which have their own layouts) are left alone.
+	if !noTable && hasMidlineTab(txt) {
 		p.top().add(&Node{Kind: KTable, Text: txt})
 		return
 	}
@@ -683,7 +683,7 @@ func (p *parser) macro(name, rest string) {
 	case "nf", "DS":
 		p.flush()
 		p.pre = &strings.Builder{}
-		p.preCode = false
+		p.preNoTable = false
 
 	case "fi", "DE":
 		p.endPre()
@@ -691,7 +691,7 @@ func (p *parser) macro(name, rest string) {
 	case "CS":
 		p.flush()
 		p.pre = &strings.Builder{}
-		p.preCode = true
+		p.preNoTable = true
 
 	case "CE":
 		p.endPre()
@@ -782,6 +782,7 @@ func (p *parser) macro(name, rest string) {
 		p.section = "STANDARD OPTIONS"
 		n.Meta = []string{ref}
 		p.pre = &strings.Builder{}
+		p.preNoTable = true // .SE turns this into a linked option list, not a table
 
 	case "SE":
 		p.endPre()
