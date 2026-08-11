@@ -478,7 +478,7 @@ type site struct {
 	Repos       []repo            // upstream repositories, linked from the footer
 	Xref        bool              // prototype: auto-link command names in prose
 	urlFor      map[string]string // command name -> relative URL (with anchor)
-	linkTargets map[string]string // page name -> page URL, only when unambiguous
+	linkTargets map[string]string // name -> URL, only when one page/entry owns it
 	pageURL     map[*Page]string
 }
 
@@ -628,30 +628,39 @@ func plan(pages []*Page) *site {
 			}
 		}
 	}
-	// linkTargets underpins -xref: a page-level name is a safe link target only
-	// when exactly one page carries it. "interp" names both the core command and
-	// the tcllib package, so it is dropped rather than linked to whichever page
-	// happened to register it first.
+	// linkTargets underpins -xref: a name is a safe link target only when exactly
+	// one thing in the corpus -- one page, or one entry (subcommand, method) --
+	// carries it. So "chan configure", which just one page defines, links to its
+	// definition; but "configure" (a method on forty-one pages) and "interp" (the
+	// core command and a tcllib package both) are ambiguous and left alone.
 	counts := map[string]int{}
-	pageNameURL := map[string]string{}
+	nameURL := map[string]string{}
 	for _, p := range pages {
 		u := s.pageURL[p]
 		seen := map[string]bool{}
-		for _, n := range p.Names {
-			if seen[n] {
-				continue
+		record := func(name, url string) {
+			if seen[name] {
+				return
 			}
-			seen[n] = true
-			counts[n]++
-			if _, ok := pageNameURL[n]; !ok {
-				pageNameURL[n] = u
+			seen[name] = true
+			counts[name]++
+			if _, ok := nameURL[name]; !ok {
+				nameURL[name] = url
+			}
+		}
+		for _, n := range p.Names {
+			record(n, u)
+		}
+		for _, e := range p.Entries {
+			if e.Anchor != "" {
+				record(e.Name, u+"#"+e.Anchor)
 			}
 		}
 	}
 	s.linkTargets = map[string]string{}
 	for n, c := range counts {
 		if c == 1 {
-			s.linkTargets[n] = pageNameURL[n]
+			s.linkTargets[n] = nameURL[n]
 		}
 	}
 
@@ -700,10 +709,11 @@ func markOptional(h string) string {
 // takes in the body. Its text carries no nested tags.
 var xrefCode = regexp.MustCompile(`<code>([^<]+)</code>`)
 
-// xrefName accepts only single-token, command-shaped names, so a multi-word
-// definition label or an emboldened literal like "0" or "{}" is never a
-// candidate. Namespaced names such as oo::class are allowed.
-var xrefName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z0-9_]+)*$`)
+// xrefName accepts command-shaped names -- one or more space-separated tokens,
+// each an identifier possibly namespaced -- so an ensemble subcommand like
+// "chan configure" or "string cat" qualifies, while an emboldened literal such
+// as "0" or "{}" never does.
+var xrefName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z0-9_]+)*( [A-Za-z_][A-Za-z0-9_]*)*$`)
 
 // crossReference links emboldened command names in a page's prose to the page
 // that documents them (prototype, off unless -xref). It is deliberately
@@ -728,6 +738,9 @@ func crossReference(body, selfURL string, targets map[string]string) (string, in
 		start, end, ns, ne := m[0], m[1], m[2], m[3]
 		name := body[ns:ne]
 		u, ok := targets[name]
+		// u == selfURL skips only the pointless whole-page self-link (a page's
+		// own name); a same-page subcommand carries a #anchor, so it still links
+		// to its definition here.
 		if !ok || u == selfURL || !xrefName.MatchString(name) {
 			continue
 		}
