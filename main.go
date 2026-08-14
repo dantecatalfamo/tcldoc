@@ -48,6 +48,8 @@ func main() {
 	var licenses multiFlag
 	flag.Var(&licenses, "license", `license file to reproduce verbatim, "Name=path" or a bare path (repeatable); a license.terms near each -src is found automatically`)
 	xref := flag.Bool("xref", false, "prototype: auto-link emboldened command names in prose")
+	var headFiles multiFlag
+	flag.Var(&headFiles, "head", "file of extra HTML to inject into <head> (repeatable); e.g. an analytics snippet kept out of the repo")
 	flag.Parse()
 
 	if len(srcs) == 0 {
@@ -100,6 +102,21 @@ func main() {
 	}
 	site.Repos = collectRepos(pages)
 	site.Xref = *xref
+
+	// Extra <head> markup -- analytics and the like -- read from files so it need
+	// not live in the repo. Injected verbatim, so the author owns its contents.
+	if len(headFiles) > 0 {
+		var sb strings.Builder
+		for _, f := range headFiles {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				log.Fatalf("tcldoc: -head %s: %v", f, err)
+			}
+			sb.Write(b)
+			sb.WriteByte('\n')
+		}
+		site.Head = template.HTML(sb.String())
+	}
 
 	if err := site.write(*out); err != nil {
 		log.Fatalf("tcldoc: %v", err)
@@ -477,6 +494,7 @@ type site struct {
 	Licenses    []licenseDoc      // verbatim license text(s), reproduced on /license/
 	Repos       []repo            // upstream repositories, linked from the footer
 	Xref        bool              // prototype: auto-link command names in prose
+	Head        template.HTML     // extra markup injected into every <head> (-head)
 	urlFor      map[string]string // command name -> relative URL (with anchor)
 	linkTargets map[string]string // name -> URL, only when one page/entry owns it
 	pageURL     map[*Page]string
@@ -1249,6 +1267,7 @@ func (s *site) write(outDir string) error {
 			"generated":  func() string { return generated },
 			"hasLicense": func() bool { return len(s.Licenses) > 0 },
 			"repos":      func() []repo { return s.Repos },
+			"extraHead":  func() template.HTML { return s.Head },
 		}).
 		ParseFS(tmplFS, "templates/site.html")
 	if err != nil {

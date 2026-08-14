@@ -29,6 +29,10 @@ go build -o tcldoc .
 
 # Auto-link emboldened command names in prose to the pages that define them
 ./tcldoc -src ~/tcl-src -xref -out ./site
+
+# Inject extra markup into every page's <head> — analytics, say — from a file
+# you keep out of the repo
+./tcldoc -src ~/tcl-src -head head.html -out ./site
 ```
 
 Don't have a source tree handy? `scripts/fetch-brew-corpus.sh [TAG]` pulls the
@@ -49,6 +53,12 @@ they get their own section, and their names and source join the search index.
 The per-script blurbs come from the directory's own `README`, which describes
 each runnable program. Images the demos load are not copied; the scripts are
 published to be read, not run from the browser.
+
+`-head` is repeatable and names a file whose contents are injected verbatim into
+every page's `<head>` — an analytics snippet, a custom font link, whatever. It is
+read from a file rather than passed inline so it can stay out of the repository:
+keep the site's own analytics URL in a `.gitignore`d `head.html` and pass
+`-head head.html` at build time.
 
 ## What it produces
 
